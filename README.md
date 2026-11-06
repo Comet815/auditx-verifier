@@ -141,6 +141,7 @@ verifier/
   verifier_core.js          浏览器复核内核（SHA-256 / SHA-512 / Ed25519 全手写）
   shell.html                页面模板
   test_verifier.js          内核测试（16 项，含 5 组破坏性用例）
+examples/case-handoff/     一个「跑得通但不该交付」的脚本，3 条缺陷 / REJECT
 examples/case-demo/
   findings.jsonl            示例账本（12 条事件，已签名）
   artifact.manifest.json    被审文件清单

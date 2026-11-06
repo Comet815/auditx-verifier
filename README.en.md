@@ -4,8 +4,8 @@
 
 **Don't trust me. Recompute it yourself.**
 
-An independent verifier for append-only review ledgers: hash chain + per-event
-Ed25519 signatures + artifact manifest + evidence quote re-check.
+An independent verifier for append-only review ledgers. It checks a hash chain,
+per-event Ed25519 signatures, an artifact manifest, and evidence quotes.
 
 It turns "this report is real" from a verbal promise into something anyone can
 recompute on their own machine.
@@ -33,17 +33,18 @@ python verify_review_brain.py examples/case-demo
 
 A software acceptance report is usually a Word file:
 
-- change a conclusion, delete a finding — **nobody can tell**;
-- who reviewed it, on what grounds, against which version of the code — all verbal;
-- when things go wrong, each side produces its own "final version".
+- a conclusion can be changed, a finding deleted — **without anyone noticing**;
+- the reviewer, the basis for the decision, and the exact version of the code
+  are often established verbally;
+- when a dispute arises, each side produces its own "final version".
 
-AuditX records the review as an **append-only event ledger**: every step is
-signed, chained by hash, and pinned to the exact bytes of the reviewed artifact.
-Anyone can verify it independently — including people who do not trust the
-reviewer.
+AuditX records the review as an **append-only event ledger**. Each step is
+signed, linked by hash, and bound to the exact bytes of the reviewed artifact.
+Anyone can verify the record independently, including people who do not trust
+the reviewer.
 
-This repository is that verifier. It **imports none of the producer's code** and
-recomputes every hash and every signature from scratch.
+This repository contains the verifier. It **imports no producer code** and
+recomputes every hash and signature from scratch.
 
 ## Try it in 30 seconds
 
@@ -52,15 +53,16 @@ pip install jsonschema cryptography
 python verify_review_brain.py examples/case-demo
 ```
 
-Or open `examples/case-demo/verify.html` — **zero install, offline**, the same
-checks re-run in your browser (pure JS, no third-party libraries).
+Alternatively, open `examples/case-demo/verify.html`. It needs **no installation
+and no network** and runs the same checks in your browser, in pure JavaScript
+with no third-party libraries.
 
 ## Live demo
 
 **[comet815.github.io/auditx-verifier](https://comet815.github.io/auditx-verifier/)**
 
-- original ledger → green "verified"
-- tampered ledger (one word changed) → red "verification failed"
+- the original ledger → green "verified";
+- a tampered ledger, one word changed → red "verification failed".
 
 ## What it checks
 
@@ -79,27 +81,29 @@ checks re-run in your browser (pure JS, no third-party libraries).
 | V11 | Evidence | artifact hashes, snapshot, quotes must really exist |
 
 The browser build covers C1–C7 (chain, signatures, digest, manifest) — enough to
-answer "was this report altered".
+answer "was this report altered". Business rules are covered only by the Python
+verifier.
 
 ## Design principles
 
-- **Zero shared logic** — the verifier never imports the producer. If the producer
-  has a bug, the verifier catches it.
+- **Zero shared logic** — the verifier never imports the producer. If the
+  producer has a bug, the verifier catches it.
 - **Plain text** — the ledger is JSONL: diffable, greppable, openable in Notepad.
 - **Offline** — no network, no upload, no cloud.
 - **Portable** — a case directory can be copied to another machine and still
-  verify (the manifest stores relative paths).
+  verify, because the manifest stores relative paths.
 
 ## Boundaries (important)
 
-- It verifies **the record was not altered**, not that the review was any good.
-- A signature proves "these events were issued by the holder of this key", not
-  that the issuer is honest.
-- **The public key is where trust starts.** Obtain its fingerprint through a
-  channel you already trust (contract annex, published page), not from the
-  `pubkey.pem` that ships with the case.
-- The ledger prevents *post-hoc edits*, not *fabrication at the start*. That is
-  what blind review, cross-examination and sampling are for.
+- It verifies that **the record was not altered**, not that the review was any
+  good.
+- A signature proves that the holder of a key issued these events. It does not
+  prove that the issuer is honest.
+- **Trust begins with the public key.** Obtain its fingerprint through a channel
+  you already trust — a contract annex, a published page — not from the
+  `pubkey.pem` shipped with the case.
+- The ledger prevents *post-hoc edits*, not *fabrication at the start*. Blind
+  review, cross-examination and sampling are what address that.
 
 ## Repository layout
 
@@ -110,10 +114,10 @@ verifier/
   verifier_core.js         browser kernel (SHA-256 / SHA-512 / Ed25519, hand-written)
   shell.html               page template
   test_verifier.js         16 checks, incl. 5 tamper cases
-examples/case-demo/        second example: a script that passes gates but should not ship
-examples/case-handoff/     first example: clean review, 12 signed events
+examples/case-demo/        clean review: 12 signed events, 0 findings rejected
+examples/case-handoff/     a script that passes the gates but should not ship
 docs/                      screenshots
-.github/workflows/ci.yml   runs Python + Node on every push
+.github/workflows/ci.yml   Python + Node, on Linux and Windows
 ```
 
 ## Tests
@@ -123,11 +127,18 @@ python verify_review_brain.py examples/case-demo   # V1-V11
 node verifier/test_verifier.js                     # 16 kernel checks
 ```
 
+## Security
+
+Bugs in the verifier itself — above all, anything that would let a tampered
+ledger verify as valid — should go through GitHub's private vulnerability
+reporting, not a public issue. Scope and known limitations: [SECURITY.md](SECURITY.md).
+
 ## Related
 
-The producer (review engine) is not open source — this repo only verifies, on
-purpose. Sister project [Hummingbird](https://github.com/Comet815/hummingbird)
-is a separate production pipeline, unrelated to this repo.
+The producer (the review engine) is not open source; this repository contains the
+verifier only, on purpose. The sister project
+[Hummingbird](https://github.com/Comet815/hummingbird) is a separate production
+pipeline and is unrelated to this repository.
 
 ## License
 
