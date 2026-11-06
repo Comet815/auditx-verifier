@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AuditX Verifier · Live Demo</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#080b11; color:#e8edf5; line-height:1.7;
+         font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif; }
+  .wrap { max-width:860px; margin:0 auto; padding:72px 32px 90px; }
+  .kicker { color:#5b6b82; letter-spacing:4px; font-size:12.5px; }
+  .lang { float:right; font-size:13px; color:#5b6b82; }
+  .lang a { color:#8b9ab1; text-decoration:none; }
+  .lang a:hover { color:#22d3ee; }
+  h1 { font-size:38px; margin:10px 0 8px; letter-spacing:1px; }
+  .lede { color:#8b9ab1; font-size:17px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; margin-top:38px; }
+  a.card { display:block; text-decoration:none; color:inherit; border:1px solid #1d2939;
+           border-radius:16px; padding:22px 24px; background:#0e1420; }
+  a.card:hover { border-color:#22d3ee; }
+  .card .t { font-size:20px; font-weight:700; }
+  .card .d { color:#8b9ab1; font-size:14px; margin-top:6px; }
+  .ok .t { color:#34d399; } .bad .t { color:#fb7185; }
+  .note { margin-top:34px; border-top:1px solid #1d2939; padding-top:20px;
+          color:#5b6b82; font-size:13.5px; }
+  code { font-family:Consolas,monospace; color:#67e8f9; }
+  .steps { margin-top:28px; border:1px solid #1d2939; border-radius:14px; padding:18px 22px; background:#0a0f18; }
+  .steps h3 { margin:0 0 8px; font-size:15px; color:#cbd5e1; }
+  .steps ol { margin:0; padding-left:20px; color:#8b9ab1; font-size:14px; }
+</style></head>
+<body><div class="wrap">
+  <div class="lang">English · <a href="index.html">中文</a></div>
+  <div class="kicker">AUDITX · VERIFIER</div>
+  <h1>Don't trust me. Recompute it yourself.</h1>
+  <div class="lede">An independent verifier for review ledgers. Everything below runs locally in your browser: hash chain, Ed25519 signatures, final digest, artifact manifest. No network, no upload, no backend.</div>
+
+  <div class="cards">
+    <a class="card ok" href="examples/case-demo/verify.html">
+      <div class="t">✓ Original ledger</div>
+      <div class="d">12 signed events, untouched — should show “verified”</div>
+    </a>
+    <a class="card bad" href="examples/case-tampered/verify.html">
+      <div class="t">✕ Tampered ledger</div>
+      <div class="d">Same ledger, one word changed at event 6 — should show “verification failed”</div>
+    </a>
+    <a class="card ok" href="examples/case-handoff/verify.html">
+      <div class="t">⚑ Handoff case</div>
+      <div class="d">A script that passes the gates but should not ship — 3 findings, REJECT</div>
+    </a>
+  </div>
+
+  <div class="steps">
+    <h3>What it actually computes</h3>
+    <ol>
+      <li>Whether each event's hash matches what the ledger recorded (one character off and it fails)</li>
+      <li>Whether the hash chain connects (delete or insert an event and it breaks)</li>
+      <li>Whether each Ed25519 signature was produced by the corresponding key</li>
+      <li>Whether the final digest matches the finding counts</li>
+      <li>Whether the artifact manifest was swapped</li>
+    </ol>
+  </div>
+
+  <div class="note">
+    Source and CLI verifier: <a href="https://github.com/Comet815/auditx-verifier" style="color:#67e8f9">Comet815/auditx-verifier</a>.
+    The browser kernel implements SHA-256, SHA-512 and Ed25519 from scratch — no third-party libraries.<br>
+    All example cases are synthetic. No real client data is included.
+  </div>
+</div></body></html>
