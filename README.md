@@ -20,6 +20,12 @@ python verify_review_brain.py examples/case-demo
 
 ---
 
+## 它长什么样
+
+![架构](docs/architecture.png)
+
+---
+
 ## 为什么需要它
 
 现在的软件验收报告是一份 Word：
