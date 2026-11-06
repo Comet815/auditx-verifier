@@ -1,5 +1,7 @@
 # AuditX Verifier
 
+![verify](https://github.com/Comet815/auditx-verifier/actions/workflows/ci.yml/badge.svg)
+
 > **别信我，自己算。**
 
 审查账本的**独立复核器**：哈希链 + 逐条 Ed25519 签名 + 被审文件清单 + 证据原文核对。
@@ -30,6 +32,8 @@ AuditX 的做法是把审查过程写成**只追加的事件账本**：每一步
 这份账本可以被任何人独立复核——包括不信任审查方的人。
 
 本仓库就是那个"复核方"：它**不 import 生成端的任何代码**，从零重算每一条哈希和每一个签名。
+
+> 被审文件按**原始字节**存储（`.gitattributes` 里标了 `-text`）。换行转换会改变哈希，V11 会当场失败——这一点 CI 上真的抓到过。
 
 ## 在线演示
 
