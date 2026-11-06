@@ -1,3 +1,6 @@
 * text=auto eol=lf
 *.png binary
 *.pdf binary
+
+# 被审文件必须按原始字节存储：换行转换会改变哈希，V11 立刻失败
+examples/*/artifact/** -text
