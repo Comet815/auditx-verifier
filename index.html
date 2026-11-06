@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AuditX Verifier · 在线演示</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#080b11; color:#e8edf5; line-height:1.7;
+         font-family:"Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+  .wrap { max-width:860px; margin:0 auto; padding:72px 32px 90px; }
+  .kicker { color:#5b6b82; letter-spacing:4px; font-size:12.5px; }
+  h1 { font-size:38px; margin:10px 0 8px; letter-spacing:1px; }
+  .lede { color:#8b9ab1; font-size:17px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:38px; }
+  a.card { display:block; text-decoration:none; color:inherit; border:1px solid #1d2939;
+           border-radius:16px; padding:22px 24px; background:#0e1420; }
+  a.card:hover { border-color:#22d3ee; }
+  .card .t { font-size:20px; font-weight:700; }
+  .card .d { color:#8b9ab1; font-size:14px; margin-top:6px; }
+  .ok .t { color:#34d399; } .bad .t { color:#fb7185; }
+  .note { margin-top:34px; border-top:1px solid #1d2939; padding-top:20px;
+          color:#5b6b82; font-size:13.5px; }
+  code { font-family:Consolas,monospace; color:#67e8f9; }
+  .steps { margin-top:28px; border:1px solid #1d2939; border-radius:14px; padding:18px 22px; background:#0a0f18; }
+  .steps h3 { margin:0 0 8px; font-size:15px; color:#cbd5e1; }
+  .steps ol { margin:0; padding-left:20px; color:#8b9ab1; font-size:14px; }
+</style></head>
+<body><div class="wrap">
+  <div class="kicker">AUDITX · VERIFIER</div>
+  <h1>别信我，自己算</h1>
+  <div class="lede">审查账本的独立复核器。下面两个页面都在你的浏览器里本地计算：哈希链、Ed25519 签名、结案摘要、被审文件清单。不联网、不上传、不依赖后端。</div>
+
+  <div class="cards">
+    <a class="card ok" href="examples/case-demo/verify.html">
+      <div class="t">✓ 原始账本</div>
+      <div class="d">12 条签名事件，未被改动 —— 应显示“验证通过”</div>
+    </a>
+    <a class="card bad" href="examples/case-tampered/verify.html">
+      <div class="t">✕ 被篡改的账本</div>
+      <div class="d">同一份账本，第 6 条被改了一个词 —— 应显示“验证未通过”</div>
+    </a>
+  </div>
+
+  <div class="steps">
+    <h3>它到底在算什么</h3>
+    <ol>
+      <li>每条事件的哈希是否与账本记录一致（改一个字就对不上）</li>
+      <li>哈希链是否衔接（删一条、插一条都会断）</li>
+      <li>每条 Ed25519 签名是否由对应私钥签发</li>
+      <li>结案摘要是否与缺陷计数吻合</li>
+      <li>被审文件的清单哈希是否被替换</li>
+    </ol>
+  </div>
+
+  <div class="note">
+    源码与命令行版本见 <a href="https://github.com/Comet815/auditx-verifier" style="color:#67e8f9">Comet815/auditx-verifier</a>；
+    浏览器内核是纯 JS 手写的 SHA-256 / SHA-512 / Ed25519，没有第三方库。<br>
+    示例案件是合成的（一个假的外卖优惠券服务），不含任何真实客户数据。
+  </div>
+</div></body></html>

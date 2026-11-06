@@ -1,0 +1,125 @@
+{
+  "case": {
+    "artifact": {
+      "artifact_id": "coupon-service",
+      "kind": "code",
+      "manifest": {
+        "path": "artifact.manifest.json",
+        "sha256": "sha256:20fd730da140a4b2641ea7b65171ffd017a91002cf6a36796c4187324f15a8da"
+      },
+      "snapshot_hash": "sha256:d6156982343f439bfd3b7b0652753ea5eaadf65d52ced81af00adc9dab8e63a1",
+      "uri": "artifact/"
+    },
+    "dimensions": [
+      "logic",
+      "security"
+    ],
+    "max_rounds": 3,
+    "min_findings": {
+      "logic": 1,
+      "security": 1
+    },
+    "rigor": "standard"
+  },
+  "case_id": "case-demo-coupon",
+  "digest": {
+    "by_severity": {
+      "MAJOR": 2,
+      "MINOR": 1
+    },
+    "overruled": 0,
+    "retracted": 0,
+    "sustained": 3
+  },
+  "findings": {
+    "F-001": {
+      "dimension": "security",
+      "rechecks": [],
+      "severity": "MAJOR",
+      "severity_final": null,
+      "status": "sustained",
+      "verdict_chain": [
+        "V-001"
+      ]
+    },
+    "F-002": {
+      "dimension": "logic",
+      "rechecks": [],
+      "severity": "MAJOR",
+      "severity_final": null,
+      "status": "sustained",
+      "verdict_chain": [
+        "V-002"
+      ]
+    },
+    "F-003": {
+      "dimension": "security",
+      "rechecks": [],
+      "severity": "MINOR",
+      "severity_final": null,
+      "status": "sustained",
+      "verdict_chain": [
+        "V-003"
+      ]
+    }
+  },
+  "head": {
+    "hash": "sha256:1c453026fa3b02aaa49e32dd5e8e439eb434c22b52fb0eb2873b03ffe1f07869",
+    "seq": 12
+  },
+  "phase": "frozen",
+  "release": "reject",
+  "rounds": {
+    "current": 0,
+    "max": 3
+  },
+  "scan": [
+    "S-01|security",
+    "S-02|logic"
+  ],
+  "seats": {
+    "S-01": {
+      "assignee": {
+        "host_id": "local",
+        "model": "reviewer/a",
+        "thread_id": "local",
+        "vendor": "reviewer"
+      },
+      "blind": true,
+      "dimensions": [
+        "security"
+      ],
+      "granted_seq": 2,
+      "lease_expires_at": "2026-11-07T06:02:57.080218+08:00",
+      "role": "reviewer"
+    },
+    "S-02": {
+      "assignee": {
+        "host_id": "local",
+        "model": "reviewer/b",
+        "thread_id": "local",
+        "vendor": "reviewer"
+      },
+      "blind": true,
+      "dimensions": [
+        "logic"
+      ],
+      "granted_seq": 3,
+      "lease_expires_at": "2026-11-07T06:02:57.087974+08:00",
+      "role": "reviewer"
+    },
+    "arbiter": {
+      "assignee": {
+        "model": "arbiter/local"
+      },
+      "blind": false,
+      "dimensions": [
+        "logic",
+        "security"
+      ],
+      "granted_seq": 1,
+      "lease_expires_at": "2026-11-14T02:02:57.043830+08:00",
+      "role": "arbiter"
+    }
+  }
+}
