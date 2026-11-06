@@ -11,7 +11,7 @@
   .kicker { color:#5b6b82; letter-spacing:4px; font-size:12.5px; }
   h1 { font-size:38px; margin:10px 0 8px; letter-spacing:1px; }
   .lede { color:#8b9ab1; font-size:17px; }
-  .cards { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-top:38px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr 1fr; gap:18px; margin-top:38px; }
   a.card { display:block; text-decoration:none; color:inherit; border:1px solid #1d2939;
            border-radius:16px; padding:22px 24px; background:#0e1420; }
   a.card:hover { border-color:#22d3ee; }
@@ -38,6 +38,10 @@
     <a class="card bad" href="examples/case-tampered/verify.html">
       <div class="t">✕ 被篡改的账本</div>
       <div class="d">同一份账本，第 6 条被改了一个词 —— 应显示“验证未通过”</div>
+    </a>
+    <a class="card ok" href="examples/case-handoff/verify.html">
+      <div class="t">⚑ 交接示例</div>
+      <div class="d">一个「跑得通、但会出事」的脚本 —— 3 条缺陷，结论 REJECT</div>
     </a>
   </div>
 

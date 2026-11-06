@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>审查报告 · case-handoff-rename</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#0b0e16; color:#e5e7eb;
+         font-family:"Microsoft YaHei","Segoe UI",system-ui,sans-serif; line-height:1.65; }
+  .wrap { max-width:1180px; margin:0 auto; padding:48px 40px 80px; }
+  h1 { font-size:34px; margin:0 0 6px; letter-spacing:1px; }
+  .sub { color:#8b98ad; font-size:15px; }
+  .top { display:flex; justify-content:space-between; align-items:flex-start; gap:24px;
+          border-bottom:1px solid #1e293b; padding-bottom:24px; margin-bottom:28px; }
+  .verdict { text-align:right; }
+  .verdict .r { font-size:30px; font-weight:700; color:#fb7185; letter-spacing:2px; }
+  .verdict .r.pass { color:#4ade80; }
+  .verdict .r.cond { color:#fbbf24; }
+  .verdict .d { color:#8b98ad; font-size:13px; margin-top:4px; }
+  .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:0 0 26px; }
+  .cell { background:#0f1420; border:1px solid #1e293b; border-radius:12px; padding:14px 16px; }
+  .cell .k { color:#64748b; font-size:12px; letter-spacing:2px; }
+  .cell .v { font-size:20px; font-weight:600; margin-top:4px; }
+  .cell .v small { font-size:12px; color:#94a3b8; font-weight:400; }
+  .banner { border-radius:12px; padding:14px 18px; margin-bottom:26px; border:1px solid; }
+  .banner.pass { background:#08170f; border-color:#14532d; color:#86efac; }
+  .banner.fail { background:#1c0a10; border-color:#7f1d1d; color:#fca5a5; }
+  .banner ul { margin:8px 0 0 18px; }
+  h2 { font-size:19px; margin:34px 0 14px; color:#cbd5e1; letter-spacing:1px; }
+  .finding { background:#0f1420; border:1px solid #1e293b; border-radius:14px;
+              padding:18px 20px; margin-bottom:14px; }
+  .finding header { display:flex; gap:10px; align-items:center; font-size:12px; margin-bottom:8px; }
+  .fid { color:#67e8f9; font-weight:700; letter-spacing:1px; }
+  .chip { color:var(--c); border:1px solid var(--c); border-radius:999px;
+           padding:1px 10px; font-size:12px; }
+  .dim { color:#94a3b8; }
+  .ruling { margin-left:auto; color:#86efac; }
+  .finding h3 { font-size:16px; margin:0 0 10px; font-weight:600; }
+  .code { position:relative; background:#070a11; border:1px solid #1e293b; border-left:3px solid #22d3ee;
+           border-radius:8px; padding:12px 14px; overflow:auto; margin:0 0 10px; }
+  .code code { font-family:Consolas,monospace; font-size:13px; color:#cbd5e1; }
+  .code .src { position:absolute; right:10px; top:8px; font-size:11px; color:#475569; }
+  .loc, .why, .fix { font-size:13.5px; color:#94a3b8; margin:6px 0; }
+  .loc code { color:#67e8f9; }
+  .why b { color:#86efac; } .fix b { color:#fbbf24; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th { text-align:left; color:#64748b; font-weight:500; padding:8px 10px; border-bottom:1px solid #1e293b; }
+  td { padding:8px 10px; border-bottom:1px solid #131a26; vertical-align:top; }
+  .seq { color:#475569; width:38px; }
+  .ev { color:#cbd5e1; margin-right:8px; }
+  .mono { font-family:Consolas,monospace; }
+  .dim { color:#64748b; }
+  details summary { cursor:pointer; color:#67e8f9; font-size:12px; }
+  .raw { background:#070a11; border-radius:8px; padding:12px; font-size:12px;
+          color:#94a3b8; max-height:280px; overflow:auto; }
+  .conds { margin:0 0 8px 20px; color:#cbd5e1; font-size:14px; }
+  .conds li { margin:6px 0; }
+  .foot { margin-top:36px; color:#475569; font-size:12.5px; border-top:1px solid #1e293b; padding-top:18px; }
+  .fp { font-family:Consolas,monospace; color:#a78bfa; }
+</style></head>
+<body><div class="wrap">
+
+<div class="top">
+  <div>
+    <div class="brand">青北鹿 · AUDITX 审查庭</div>
+    <h1>审查报告</h1>
+    <div class="sub">case-handoff-rename · 严苛度 standard
+      · 维度 logic、security</div>
+  </div>
+  <div class="verdict">
+    <div class="r ">REJECT</div>
+    <div class="d">事件 11 条 · 结案摘要 3 条维持</div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="cell"><div class="k">缺陷总数</div><div class="v">3</div></div>
+  <div class="cell"><div class="k">严重 / 一般 / 提示</div>
+    <div class="v">2 / 1 / 0
+    <small>0 阻断</small></div></div>
+  <div class="cell"><div class="k">被审对象</div>
+    <div class="v" style="font-size:15px">rename_batch.py
+    <small>code</small></div></div>
+  <div class="cell"><div class="k">快照哈希</div>
+    <div class="v mono" style="font-size:12px;word-break:break-all">sha256:aecde8228e2d82b6d06fe6e15653dd2d2da48bf8a7d098e8bbe02d280ce53bf9</div></div>
+</div>
+
+<div class="banner pass">
+  <b>包外验证：全部通过</b>（V1-V9＋V10 签名 / V11 证据核对）
+  
+</div>
+
+<h2>缺陷清单</h2>
+
+        <article class="finding">
+          <header>
+            <span class="fid">F-001</span>
+            <span class="chip" style="--c:#fb923c">严重</span>
+            <span class="dim">logic</span>
+            <span class="ruling">sustained</span>
+          </header>
+          <h3>通配符没有过滤目录，子目录会被当成文件改名</h3>
+          <pre class="code"><code>files = sorted(glob.glob(os.path.join(folder, &quot;*&quot;)))</code><span class="src">rename_batch.py:15</span></pre>
+          <p class="loc">位置：<code>artifact/rename_batch.py:15</code></p>
+          <p class="why"><b>裁定理由</b>：证据明确，可复现，维持原判。</p>
+          <p class="fix"><b>整改建议</b>：只取普通文件：files = [p for p in ... if os.path.isfile(p)]；遇到目录跳过。</p>
+        </article>
+        <article class="finding">
+          <header>
+            <span class="fid">F-002</span>
+            <span class="chip" style="--c:#fb923c">严重</span>
+            <span class="dim">security</span>
+            <span class="ruling">sustained</span>
+          </header>
+          <h3>目标已存在时静默覆盖，批量改名不可回滚</h3>
+          <pre class="code"><code>os.rename(path, new)</code><span class="src">rename_batch.py:19</span></pre>
+          <p class="loc">位置：<code>artifact/rename_batch.py:17-19</code></p>
+          <p class="why"><b>裁定理由</b>：证据明确，可复现，维持原判。</p>
+          <p class="fix"><b>整改建议</b>：改名前列出冲突目标并中止；输出映射表用于回滚。</p>
+        </article>
+        <article class="finding">
+          <header>
+            <span class="fid">F-003</span>
+            <span class="chip" style="--c:#fbbf24">一般</span>
+            <span class="dim">logic</span>
+            <span class="ruling">sustained</span>
+          </header>
+          <h3>没有 dry-run，批量操作无法预演</h3>
+          <pre class="code"><code>if len(sys.argv) != 3:</code><span class="src">rename_batch.py:25</span></pre>
+          <p class="loc">位置：<code>artifact/rename_batch.py:25-28</code></p>
+          <p class="why"><b>裁定理由</b>：证据明确，可复现，维持原判。</p>
+          <p class="fix"><b>整改建议</b>：加 --dry-run，打印将要发生的改名而不真正执行。</p>
+        </article>
+
+<h2>整改条件</h2>
+<ol class=conds><li>F-001 过滤目录，只处理普通文件</li><li>F-002 目标冲突时中止，并提供回滚映射</li><li>F-003 增加 --dry-run</li></ol>
+
+<h2>事件时间线</h2>
+<table>
+  <thead><tr><th>#</th><th>事件</th><th>时间</th><th>席位</th><th>阶段</th><th>载荷</th></tr></thead>
+  <tbody>
+        <tr>
+          <td class="seq">01</td>
+          <td><span class="ev">立案</span>
+              <code class="mono">CASE_OPEN</code></td>
+          <td class="mono dim">2026-11-07<br>03:09:51</td>
+          <td>arbiter</td>
+          <td class="dim">opening</td>
+          <td><details><summary>查看</summary><pre class="raw">{
+  &quot;artifact&quot;: {
+    &quot;artifact_id&quot;: &quot;rename_batch.py&quot;,
+    &quot;kind&quot;: &quot;code&quot;,
+    &quot;manifest&quot;: {
+      &quot;path&quot;: &quot;artifact.manifest.json&quot;,
+      &quot;sha256&quot;: &quot;sha256:530fd810852d5435b595ea4c472aa62f558d4eeeb0c49bbd4b155e73e054d714&quot;
+    },
+    &quot;snapshot_hash&quot;: &quot;sha256:aecde8228e2d82b6d06fe6e15653dd2d2da48bf8a7d098e8bbe02d280ce53bf9&quot;,
+    &quot;uri&quot;: &quot;artifact/&quot;
+  },
+  &quot;dimensions&quot;: [
+    &quot;logic&quot;,
+    &quot;security&quot;
+  ],
+  &quot;max_rounds&quot;: 3,
+  &quot;min_findings&quot;: {
+    &quot;logic&quot;: 2,
+    &quot;security&quot;: 1
+  },
+  &quot;rigor&quot;: &quot;standard&quot;
+}</pre></details></td>
+        </tr>
+        <tr>
+          <td class="seq">02</td>
+          <td><span class="ev">发席</span>
+              <code class="mono">SEAT_GRANTED</code></td>
+          <td class="mono dim">2026-11-07<br>03:09:51</td>
+          <td>arbiter</td>
+          <td class="dim">opening</td>
+          <td><details><summary>查看</summary><pre class="raw">{
+  &quot;assignee&quot;: {
+    &quot;host_id&quot;: &quot;local&quot;,
+    &quot;model&quot;: &quot;reviewer/static&quot;,
+    &quot;thread_id&quot;: &quot;local&quot;,
+    &quot;vendor&quot;: &quot;reviewer&quot;
+  },
+  &quot;blind&quot;: true,
+  &quot;dimensions&quot;: [
+    &quot;logic&quot;,
+    &quot;security&quot;
+  ],
+  &quot;lease&quot;: {
+    &quot;expires_at&quot;: &quot;2026-11-07T07:09:51.891953+08:00&quot;,
+    &quot;lease_hash&quot;: &quot;sha256:a7920b91be79fd14769bd1cb78f9243eeee912dbc79b35988e10e7e6feb629ea&quot;,
+    &quot;lease_id&quot;: &quot;lease-S-01&quot;
+  },
+  &quot;role&quot;: &quot;reviewer&quot;,
+  &quot;seat_id&quot;: &quot;S-01&quot;
+}</pre></details></td>
+        </tr>
+        <tr>
+          <td class="seq">03</td>
+          <td><span class="ev">提交缺陷</span>
+              <code class="mono">FINDING</code></td>
+          <td class="mono dim">2026-11-07<br>03:09:51</td>
+          <td>S-01</td>
+          <td class="dim">blind</td>
+          <td><details><summary>查看</summary><pre class="raw">{
+  &quot;claim&quot;: &quot;通配符没有过滤目录，子目录会被当成文件改名&quot;,
+  &quot;dimension&quot;: &quot;logic&quot;,
+  &quot;evidence&quot;: [
+    {
+      &quot;content&quot;: &quot;files = sorted(glob.glob(os.path.join(folder, \&quot;*\&quot;)))&quot;,
+      &quot;kind&quot;: &quot;quote&quot;,
+      &quot;uri&quot;: &quot;rename_batch.py:15&quot;
+    }
+  ],
+  &quot;finding_id&quot;: &quot;F-001&quot;,
+  &quot;location&quot;: {
+    &quot;locator&quot;: &quot;artifact/rename_batch.py:15&quot;,
+    &quot;quote&quot;: &quot;glob.glob(os.path.join(folder, \&quot;*\&quot;))&quot;
+  },
+  &quot;severity&quot;: &quot;MAJOR&quot;,
+  &quot;suggestion&quot;: &quot;只取普通文件：files = [p for p in ... if os.path.isfile(p)]；遇到目录跳过。&quot;
+}</pre></details></td>
+        </tr>
+        <tr>
+          <td class="seq">04</td>
+          <td><span class="ev">提交缺陷</span>
+              <code class="mono">FINDING</code></td>
+          <td class="mono dim">2026-11-07<br>03:09:51</td>
+          <td>S-01</td>
+          <td class="dim">blind</td>
+          <td><details><summary>查看</summary><pre class="raw">{
+  &quot;claim&quot;: &quot;目标已存在时静默覆盖，批量改名不可回滚&quot;,
+  &quot;dimension&quot;: &quot;security&quot;,
+  &quot;evidence&quot;: [
+    {
+      &quot;content&quot;: &quot;os.rename(path, new)&quot;,
+      &quot;kind&quot;: &quot;quote&quot;,
+      &quot;uri&quot;: &quot;rename_batch.py:19&quot;
+    }
+  ],
+  &quot;finding_id&quot;: &quot;F-002&quot;,
+  &quot;location&quot;: {
+    &quot;locator&quot;: &quot;artifact/rename_batch.py:17-19&quot;,
+    &quot;quote&quot;: &quot;os.rename(path, new)&quot;
+  },
+  &quot;severity&quot;: &quot;MAJOR&quot;,
+  &quot;suggestion&quot;: &quot;改名前列出冲突目标并中止；输出映射表用于回滚。&quot;
+}</pre></details></td>
+        </tr>
+        <tr>
+          <td class="seq">05</td>
+          <td><span class="ev">提交缺陷</span>
+              <code class="mono">FINDING</code></td>
+          <td class="mono dim">2026-11-07<br>03:09:51</td>
+          <td>S-01</td>
+          <td class="dim">blind</td>
+          <td><details><summary>查看</summary><pre class="raw">{
+  &quot;claim&quot;: &quot;没有 dry-run，批量操作无法预演&quot;,
+  &quot;dimension&quot;: &quot;logic&quot;,
+  &quot;evidence&quot;: [
+    {
+      &quot;content&quot;: &quot;if len(sys.argv) != 3:&quot;,
+      &quot;kind&quot;: &quot;quote&quot;,
+      &quot;uri&quot;: &quot;rename_batch.py:25&quot;
+    }
+  ],
+  &quot;finding_id&quot;: &quot;F-003&quot;,
+  &quot;location&quot;: {
+    &quot;locator&quot;: &quot;artifact/rename_batch.py:25-28&quot;,
+    &quot;quote&quot;: &quot;len(sys.argv) != 3&quot;
+  },
+  &quot;severity&quot;: &quot;MINOR&quot;,
+  &quot;suggestion&quot;: &quot;加 --dry-run，打印将要发生的改名而不真正执行。&quot;
+}</pre></details></td>
+        </tr>
+        <tr>
+          <td class="seq">06</td>
+          <td><span class="ev">交卷</span>
+              <code class="mono">SCAN_DONE</code></td>
+          <td class="mono dim">2026-11-07<br>03:09:51</td>
+          <td>S-01</td>
+          <td class="dim">blind</td>
+          <td><details><summary>查看</summary><pre class="raw">{
+  &quot;checklist&quot;: [
+    {
+      &quot;item&quot;: &quot;边界输入（空目录 / 子目录）&quot;,
+      &quot;result&quot;: &quot;flag&quot;
+    },
+    {
+      &quot;item&quot;: &quot;可预演性&quot;,
+      &quot;result&quot;: &quot;flag&quot;
+    }
+  ],
+  &quot;dimension&quot;: &quot;logic&quot;,
+  &quot;findings_submitted&quot;: 2
+}</pre></details></td>
+        </tr>
+        <tr>
+          <td class="seq">07</td>
+          <td><span class="ev">交卷</span>
+              <code class="mono">SCAN_DONE</code></td>
+          <td class="mono dim">2026-11-07<br>03:09:51</td>
+          <td>S-01</td>
+          <td class="dim">blind</td>
+          <td><details><summary>查看</summary><pre class="raw">{
+  &quot;checklist&quot;: [
+    {
+      &quot;item&quot;: &quot;数据覆盖风险&quot;,
+      &quot;result&quot;: &quot;flag&quot;
+    }
+  ],
+  &quot;dimension&quot;: &quot;security&quot;,
+  &quot;findings_submitted&quot;: 1
+}</pre></details></td>
+        </tr>
+        <tr>
+          <td class="seq">08</td>
+          <td><span class="ev">裁定</span>
+              <code class="mono">VERDICT</code></td>
+          <td class="mono dim">2026-11-07<br>03:09:51</td>
+          <td>arbiter</td>
+          <td class="dim">cross</td>
+          <td><details><summary>查看</summary><pre class="raw">{
+  &quot;cites&quot;: [],
+  &quot;rationale&quot;: &quot;证据明确，可复现，维持原判。&quot;,
+  &quot;ruling&quot;: &quot;sustained&quot;,
+  &quot;target_finding&quot;: &quot;F-001&quot;,
+  &quot;verdict_id&quot;: &quot;V-001&quot;
+}</pre></details></td>
+        </tr>
+        <tr>
+          <td class="seq">09</td>
+          <td><span class="ev">裁定</span>
+              <code class="mono">VERDICT</code></td>
+          <td class="mono dim">2026-11-07<br>03:09:51</td>
+          <td>arbiter</td>
+          <td class="dim">cross</td>
+          <td><details><summary>查看</summary><pre class="raw">{
+  &quot;cites&quot;: [],
+  &quot;rationale&quot;: &quot;证据明确，可复现，维持原判。&quot;,
+  &quot;ruling&quot;: &quot;sustained&quot;,
+  &quot;target_finding&quot;: &quot;F-002&quot;,
+  &quot;verdict_id&quot;: &quot;V-002&quot;
+}</pre></details></td>
+        </tr>
+        <tr>
+          <td class="seq">10</td>
+          <td><span class="ev">裁定</span>
+              <code class="mono">VERDICT</code></td>
+          <td class="mono dim">2026-11-07<br>03:09:51</td>
+          <td>arbiter</td>
+          <td class="dim">cross</td>
+          <td><details><summary>查看</summary><pre class="raw">{
+  &quot;cites&quot;: [],
+  &quot;rationale&quot;: &quot;证据明确，可复现，维持原判。&quot;,
+  &quot;ruling&quot;: &quot;sustained&quot;,
+  &quot;target_finding&quot;: &quot;F-003&quot;,
+  &quot;verdict_id&quot;: &quot;V-003&quot;
+}</pre></details></td>
+        </tr>
+        <tr>
+          <td class="seq">11</td>
+          <td><span class="ev">结案</span>
+              <code class="mono">CASE_FROZEN</code></td>
+          <td class="mono dim">2026-11-07<br>03:09:51</td>
+          <td>arbiter</td>
+          <td class="dim">remediation</td>
+          <td><details><summary>查看</summary><pre class="raw">{
+  &quot;archive&quot;: {
+    &quot;frozen_snapshot_hash&quot;: &quot;sha256:564b841296023c0f25fa7775d93154b97a40a3028ff7fdcd85d7e0ade1eabb8a&quot;,
+    &quot;memory_candidates&quot;: []
+  },
+  &quot;conditions&quot;: [
+    &quot;F-001 过滤目录，只处理普通文件&quot;,
+    &quot;F-002 目标冲突时中止，并提供回滚映射&quot;,
+    &quot;F-003 增加 --dry-run&quot;
+  ],
+  &quot;countersign&quot;: &quot;&quot;,
+  &quot;digest&quot;: {
+    &quot;by_severity&quot;: {
+      &quot;MAJOR&quot;: 2,
+      &quot;MINOR&quot;: 1
+    },
+    &quot;overruled&quot;: 0,
+    &quot;retracted&quot;: 0,
+    &quot;sustained&quot;: 3
+  },
+  &quot;release&quot;: &quot;reject&quot;
+}</pre></details></td>
+        </tr></tbody>
+</table>
+
+<div class="foot">
+  <p>复核方式：<code>python verify_review_brain.py case-handoff</code>
+     —— 验证器独立重放全部事件，不依赖生成方。</p>
+  <p>零安装复核：双击同目录的 <code>verify.html</code>，浏览器本地重算哈希链与签名，不联网、不装 Python。</p>
+  <p>公钥指纹：<span class="fp">SHA256:VRIIUIKD4JKRFOPNKM7TFJK46OIOBEGS</span>
+     · 签名算法 Ed25519 · 逐事件签名</p>
+  <p>账本：findings.jsonl（11 行，Hash 链）· 视图：view.json ·
+     被审清单：artifact.manifest.json</p>
+</div>
+
+</div></body></html>

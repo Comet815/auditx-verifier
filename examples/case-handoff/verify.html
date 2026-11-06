@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>case-handoff · 审查庭离线验证</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#0b0e16; color:#e5e7eb; line-height:1.65;
+         font-family:"Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+  .wrap { max-width:980px; margin:0 auto; padding:44px 32px 72px; }
+  .brand { color:#67e8f9; letter-spacing:3px; font-size:12px; }
+  h1 { font-size:30px; margin:6px 0 4px; letter-spacing:1px; }
+  .sub { color:#8b98ad; font-size:14px; }
+  .stage { border-radius:16px; padding:26px 28px; margin:26px 0 20px; border:1px solid; }
+  .stage.pending { background:#0f1420; border-color:#1e293b; color:#94a3b8; }
+  .stage.pass { background:#07160f; border-color:#14532d; }
+  .stage.fail { background:#1c0a10; border-color:#7f1d1d; }
+  .stage .icon { font-size:44px; line-height:1; }
+  .stage .txt { font-size:26px; font-weight:700; letter-spacing:2px; margin-top:6px; }
+  .pass .txt { color:#4ade80; } .fail .txt { color:#fb7185; }
+  .stage .note { color:#94a3b8; font-size:13.5px; margin-top:6px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:26px; }
+  .cell { background:#0f1420; border:1px solid #1e293b; border-radius:12px; padding:12px 15px; }
+  .cell .k { color:#64748b; font-size:11.5px; letter-spacing:2px; }
+  .cell .v { font-size:16px; font-weight:600; margin-top:3px; word-break:break-all; }
+  h2 { font-size:17px; color:#cbd5e1; margin:28px 0 12px; letter-spacing:1px; }
+  ul.checks { list-style:none; margin:0; padding:0; }
+  ul.checks li { display:flex; gap:12px; align-items:flex-start; padding:9px 12px;
+                 border-bottom:1px solid #131a26; font-size:14px; }
+  ul.checks .ci { width:22px; flex:none; }
+  ul.checks .cl { flex:none; width:150px; color:#cbd5e1; }
+  ul.checks .cd { color:#64748b; font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; color:#64748b; font-weight:500; padding:7px 9px; border-bottom:1px solid #1e293b; }
+  td { padding:7px 9px; border-bottom:1px solid #131a26; vertical-align:top; }
+  .mono { font-family:Consolas,monospace; }
+  .dim { color:#64748b; }
+  .manual { margin-top:30px; background:#0f1420; border:1px solid #1e293b; border-radius:12px; padding:16px 18px; }
+  .manual summary { cursor:pointer; color:#67e8f9; font-size:14px; }
+  .row { display:flex; gap:10px; align-items:center; margin:10px 0; font-size:13.5px; color:#94a3b8; flex-wrap:wrap; }
+  .row input[type=file] { color:#94a3b8; }
+  button { background:#0e7490; color:#fff; border:0; border-radius:8px; padding:9px 20px;
+           font-size:14px; cursor:pointer; font-family:inherit; }
+  button:hover { background:#0891b2; }
+  .foot { margin-top:34px; border-top:1px solid #1e293b; padding-top:16px;
+          color:#475569; font-size:12.5px; }
+  .fp { font-family:Consolas,monospace; color:#a78bfa; }
+</style></head>
+<body><div class="wrap">
+
+  <div class="brand">青北鹿 · AUDITX 审查庭</div>
+  <h1>离线验证</h1>
+  <div class="sub" id="sub">正在读取…</div>
+
+  <div class="stage pending" id="stage">
+    <div class="icon">⏳</div>
+    <div class="txt">正在校验…</div>
+    <div class="note" id="note"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <h2>校验明细</h2>
+  <ul class="checks" id="checks"></ul>
+
+  <h2>账本事件</h2>
+  <table><thead><tr><th style="width:44px">#</th><th>事件</th><th>席位</th><th>时间</th></tr></thead>
+  <tbody id="events"></tbody></table>
+
+  <details class="manual">
+    <summary>验证其他案件（手动选择文件）</summary>
+    <div class="row">账本 <input type="file" id="f-ledger" accept=".jsonl,.json,.txt"></div>
+    <div class="row">公钥 <input type="file" id="f-pub" accept=".pem,.txt"></div>
+    <div class="row">清单 <input type="file" id="f-man" accept=".json,.txt">（可选）</div>
+    <div class="row"><button id="btn-run">开始校验</button></div>
+  </details>
+
+  <div class="foot">
+    <p>本页在<strong>你的浏览器本地</strong>完成全部计算：哈希链重算、Ed25519 逐条验签、结案摘要重算、被审清单核对。
+       不联网、不上传、不依赖 Python。</p>
+    <p>公钥指纹：<span class="fp" id="fp">—</span></p>
+    <p>需要 Chrome 67+ / Edge 79+；Windows 7 可安装 Chrome 109。更完整的业务规则复核（阶段、权限、租约、冻结），
+       请运行 <code>python verify_review_brain.py &lt;案件目录&gt;</code>。</p>
+  </div>
+
+</div>
+
+<script>/* AuditX 浏览器校验内核 —— 零依赖、可离线、可在老浏览器（ES5 降级版另出）
+ *
+ * 覆盖范围（与 Python 验证器的 V3 / V8 / V10 / V11 对应）：
+ *   C1 每行可解析
+ *   C2 seq 连续
+ *   C3 prev_hash 衔接（首行接 genesis）
+ *   C4 本行 hash 重算一致
+ *   C5 Ed25519 签名有效（需公钥）
+ *   C6 结案摘要与缺陷计数一致
+ *   C7 被审清单与 CASE_OPEN 引用一致
+ *
+ * 不含：阶段/角色/租约等业务规则（那是 Python 验证器 V4~V7 的活）。
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.AuditXVerify = factory();
+})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+  'use strict';
+
+  // ───────────────────────── 基础工具 ─────────────────────────
+  function utf8(str) {
+    var out = [], i, c;
+    for (i = 0; i < str.length; i++) {
+      c = str.charCodeAt(i);
+      if (c < 0x80) out.push(c);
+      else if (c < 0x800) out.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+      else if (c >= 0xd800 && c <= 0xdbff && i + 1 < str.length) {
+        var c2 = str.charCodeAt(i + 1);
+        if (c2 >= 0xdc00 && c2 <= 0xdfff) {
+          var cp = 0x10000 + ((c - 0xd800) << 10) + (c2 - 0xdc00);
+          out.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 63),
+                   0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+          i++;
+          continue;
+        }
+        out.push(0xef, 0xbf, 0xbd);
+      } else if (c >= 0xdc00 && c <= 0xdfff) out.push(0xef, 0xbf, 0xbd);
+      else out.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    }
+    return new Uint8Array(out);
+  }
+
+  function hex(bytes) {
+    var s = '', i;
+    for (i = 0; i < bytes.length; i++) s += (bytes[i] < 16 ? '0' : '') + bytes[i].toString(16);
+    return s;
+  }
+
+  function b64ToBytes(s) {
+    var bin = atob(s.replace(/\s+/g, '')), out = new Uint8Array(bin.length), i;
+    for (i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  // ───────────────────────── SHA-256 ─────────────────────────
+  // 常量现场推导：K_i = floor(cbrt(prime_i) * 2^32) mod 2^32，避免手抄出错
+  var _primes = (function () {
+    var out = [], n = 2;
+    while (out.length < 80) {
+      var prime = true;
+      for (var d = 2; d * d <= n; d++) if (n % d === 0) { prime = false; break; }
+      if (prime) out.push(n);
+      n++;
+    }
+    return out;
+  })();
+
+  function iroot(n, k) { // floor(n^(1/k))
+    if (n < 2n) return n;
+    var x = 1n << BigInt(Math.ceil(n.toString(2).length / k) + 1);
+    for (;;) {
+      var y = ((BigInt(k) - 1n) * x + n / powBig(x, BigInt(k - 1))) / BigInt(k);
+      if (y >= x) break;
+      x = y;
+    }
+    return x;
+  }
+
+  function powBig(b, e) {
+    var r = 1n;
+    while (e > 0n) { if (e & 1n) r *= b; b *= b; e >>= 1n; }
+    return r;
+  }
+
+  var K256 = (function () {
+    var a = new Uint32Array(64), i;
+    for (i = 0; i < 64; i++) {
+      var v = iroot(BigInt(_primes[i]) << 96n, 3) & 0xffffffffn;
+      a[i] = Number(v);
+    }
+    return a;
+  })();
+
+  var H256 = (function () {
+    var a = new Uint32Array(8), i;
+    for (i = 0; i < 8; i++) a[i] = Number(iroot(BigInt(_primes[i]) << 64n, 2) & 0xffffffffn);
+    return a;
+  })();
+
+  function sha256(bytes) {
+    var h = new Uint32Array(H256), len = bytes.length;
+    var withPad = ((len + 9 + 63) >> 6) << 6;
+    var buf = new Uint8Array(withPad);
+    buf.set(bytes); buf[len] = 0x80;
+    var bits = len * 8;
+    buf[withPad - 4] = (bits >>> 24) & 255; buf[withPad - 3] = (bits >>> 16) & 255;
+    buf[withPad - 2] = (bits >>> 8) & 255; buf[withPad - 1] = bits & 255;
+
+    var w = new Uint32Array(64), i, t;
+    for (var off = 0; off < withPad; off += 64) {
+      for (i = 0; i < 16; i++) {
+        w[i] = (buf[off + i * 4] << 24 | buf[off + i * 4 + 1] << 16 |
+                buf[off + i * 4 + 2] << 8 | buf[off + i * 4 + 3]) >>> 0;
+      }
+      for (i = 16; i < 64; i++) {
+        var s0 = rotr32(w[i - 15], 7) ^ rotr32(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+        var s1 = rotr32(w[i - 2], 17) ^ rotr32(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+      }
+      var a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], hh = h[7];
+      for (i = 0; i < 64; i++) {
+        var S1 = rotr32(e, 6) ^ rotr32(e, 11) ^ rotr32(e, 25);
+        var ch = (e & f) ^ (~e & g);
+        var t1 = (hh + S1 + ch + K256[i] + w[i]) >>> 0;
+        var S0 = rotr32(a, 2) ^ rotr32(a, 13) ^ rotr32(a, 22);
+        var maj = (a & b) ^ (a & c) ^ (b & c);
+        var t2 = (S0 + maj) >>> 0;
+        hh = g; g = f; f = e; e = (d + t1) >>> 0;
+        d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+      }
+      h[0] = (h[0] + a) >>> 0; h[1] = (h[1] + b) >>> 0;
+      h[2] = (h[2] + c) >>> 0; h[3] = (h[3] + d) >>> 0;
+      h[4] = (h[4] + e) >>> 0; h[5] = (h[5] + f) >>> 0;
+      h[6] = (h[6] + g) >>> 0; h[7] = (h[7] + hh) >>> 0;
+    }
+    var out = new Uint8Array(32);
+    for (i = 0; i < 8; i++) {
+      out[i * 4] = h[i] >>> 24; out[i * 4 + 1] = (h[i] >>> 16) & 255;
+      out[i * 4 + 2] = (h[i] >>> 8) & 255; out[i * 4 + 3] = h[i] & 255;
+    }
+    return out;
+  }
+
+  function rotr32(x, n) { return ((x >>> n) | (x << (32 - n))) >>> 0; }
+
+  // ───────────────────────── SHA-512（BigInt 实现）─────────────────────────
+  var MASK64 = (1n << 64n) - 1n;
+
+  var K512 = (function () {
+    var a = [], i;
+    for (i = 0; i < 80; i++) a.push(iroot(BigInt(_primes[i]) << 192n, 3) & MASK64);
+    return a;
+  })();
+
+  var H512 = (function () {
+    var a = [], i;
+    for (i = 0; i < 8; i++) a.push(iroot(BigInt(_primes[i]) << 128n, 2) & MASK64);
+    return a;
+  })();
+
+  function rotr64(x, n) { return ((x >> n) | (x << (64n - n))) & MASK64; }
+
+  function sha512(bytes) {
+    var h = H512.slice(), len = bytes.length;
+    var withPad = ((len + 17 + 127) >> 7) << 7;
+    var buf = new Uint8Array(withPad);
+    buf.set(bytes); buf[len] = 0x80;
+    var bits = BigInt(len) * 8n;
+    for (var k = 0; k < 16; k++) buf[withPad - 1 - k] = Number((bits >> BigInt(k * 8)) & 255n);
+
+    var w = new Array(80);
+    for (var off = 0; off < withPad; off += 128) {
+      var i;
+      for (i = 0; i < 16; i++) {
+        var v = 0n;
+        for (var j = 0; j < 8; j++) v = (v << 8n) | BigInt(buf[off + i * 8 + j]);
+        w[i] = v;
+      }
+      for (i = 16; i < 80; i++) {
+        var s0 = rotr64(w[i - 15], 1n) ^ rotr64(w[i - 15], 8n) ^ (w[i - 15] >> 7n);
+        var s1 = rotr64(w[i - 2], 19n) ^ rotr64(w[i - 2], 61n) ^ (w[i - 2] >> 6n);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) & MASK64;
+      }
+      var a = h[0], b = h[1], c = h[2], d = h[3], e = h[4], f = h[5], g = h[6], hh = h[7];
+      for (i = 0; i < 80; i++) {
+        var S1 = rotr64(e, 14n) ^ rotr64(e, 18n) ^ rotr64(e, 41n);
+        var ch = (e & f) ^ ((~e & MASK64) & g);
+        var t1 = (hh + S1 + ch + K512[i] + w[i]) & MASK64;
+        var S0 = rotr64(a, 28n) ^ rotr64(a, 34n) ^ rotr64(a, 39n);
+        var maj = (a & b) ^ (a & c) ^ (b & c);
+        var t2 = (S0 + maj) & MASK64;
+        hh = g; g = f; f = e; e = (d + t1) & MASK64;
+        d = c; c = b; b = a; a = (t1 + t2) & MASK64;
+      }
+      h[0] = (h[0] + a) & MASK64; h[1] = (h[1] + b) & MASK64;
+      h[2] = (h[2] + c) & MASK64; h[3] = (h[3] + d) & MASK64;
+      h[4] = (h[4] + e) & MASK64; h[5] = (h[5] + f) & MASK64;
+      h[6] = (h[6] + g) & MASK64; h[7] = (h[7] + hh) & MASK64;
+    }
+    var out = new Uint8Array(64);
+    for (i = 0; i < 8; i++) {
+      for (var b2 = 0; b2 < 8; b2++) out[i * 8 + 7 - b2] = Number((h[i] >> BigInt(b2 * 8)) & 255n);
+    }
+    return out;
+  }
+
+  // ───────────────────────── Ed25519 ─────────────────────────
+  var P = (1n << 255n) - 19n;
+  var L = (1n << 252n) + 27742317777372353535851937790883648493n;
+
+  function mod(a) { var r = a % P; return r < 0n ? r + P : r; }
+
+  function inv(a) { return powMod(mod(a), P - 2n); }
+
+  function powMod(b, e) {
+    var r = 1n;
+    b = mod(b);
+    while (e > 0n) { if (e & 1n) r = mod(r * b); b = mod(b * b); e >>= 1n; }
+    return r;
+  }
+
+  var D = mod(-121665n * inv(121666n));
+  var SQRT_M1 = powMod(2n, (P - 1n) / 4n);
+
+  function recoverX(y, sign) {
+    var y2 = mod(y * y);
+    var num = mod(y2 - 1n);
+    var den = mod(D * y2 + 1n);
+    var x2 = mod(num * inv(den));
+    var x = powMod(x2, (P + 3n) / 8n);
+    if (mod(x * x) !== x2) x = mod(x * SQRT_M1);
+    if (mod(x * x) !== x2) return null;
+    if (Number(x & 1n) !== (sign & 1)) x = mod(-x);
+    return x;
+  }
+
+  var BY = mod(4n * inv(5n));
+  var BX = recoverX(BY, 0);
+
+  var IDENT = { X: 0n, Y: 1n, Z: 1n, T: 0n };
+
+  function extPoint(x, y) { return { X: x, Y: y, Z: 1n, T: mod(x * y) }; }
+
+  function addPt(p1, p2) {
+    var a = mod((p1.Y - p1.X) * (p2.Y - p2.X));
+    var b = mod((p1.Y + p1.X) * (p2.Y + p2.X));
+    var c = mod(p1.T * 2n * D * p2.T);
+    var d = mod(p1.Z * 2n * p2.Z);
+    var e = mod(b - a), f = mod(d - c), g = mod(d + c), h = mod(b + a);
+    return { X: mod(e * f), Y: mod(g * h), T: mod(e * h), Z: mod(f * g) };
+  }
+
+  function dblPt(p) {
+    var a = mod(p.X * p.X), b = mod(p.Y * p.Y);
+    var c = mod(2n * p.Z * p.Z);
+    var h = mod(a + b);
+    var e = mod(h - mod((p.X + p.Y) * (p.X + p.Y)));
+    var g = mod(a - b), f = mod(c + g);
+    return { X: mod(e * f), Y: mod(g * h), T: mod(e * h), Z: mod(f * g) };
+  }
+
+  function mulPt(p, scalar) {
+    var q = IDENT, s = scalar;
+    while (s > 0n) {
+      if (s & 1n) q = addPt(q, p);
+      p = dblPt(p);
+      s >>= 1n;
+    }
+    return q;
+  }
+
+  function encPt(p) {
+    var zi = inv(p.Z);
+    var x = mod(p.X * zi), y = mod(p.Y * zi);
+    var out = new Uint8Array(32);
+    for (var i = 0; i < 32; i++) out[i] = Number((y >> BigInt(i * 8)) & 255n);
+    out[31] |= Number(x & 1n) << 7;
+    return out;
+  }
+
+  function decPt(bytes) {
+    var y = 0n;
+    for (var i = 0; i < 32; i++) y |= BigInt(bytes[i]) << BigInt(i * 8);
+    var sign = Number(y >> 255n) & 1;
+    y &= (1n << 255n) - 1n;
+    if (y >= P) return null;
+    var x = recoverX(y, sign);
+    if (x === null) return null;
+    return extPoint(x, y);
+  }
+
+  function ed25519Verify(pubKey, msg, sig) {
+    if (sig.length !== 64 || pubKey.length !== 32) return false;
+    var R = sig.slice(0, 32), Sbytes = sig.slice(32);
+    var S = 0n;
+    for (var i = 0; i < 32; i++) S |= BigInt(Sbytes[i]) << BigInt(i * 8);
+    if (S >= L) return false;
+    var A = decPt(pubKey), Rp = decPt(R);
+    if (!A || !Rp) return false;
+    var hIn = new Uint8Array(64 + msg.length);
+    hIn.set(R, 0); hIn.set(pubKey, 32); hIn.set(msg, 64);
+    var hh = sha512(hIn);
+    var h = 0n;
+    for (i = 0; i < 64; i++) h |= BigInt(hh[i]) << BigInt(i * 8);
+    h %= L;
+    var left = mulPt(extPoint(BX, BY), S);
+    var right = addPt(Rp, mulPt(A, h));
+    var a = encPt(left), b = encPt(right);
+    for (i = 0; i < 32; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+
+  // ───────────────────────── JCS 规范化（对齐 Python json.dumps）─────────────────────────
+  function jsonStr(s) { return JSON.stringify(s); }
+
+  function numRepr(n) {
+    if (!isFinite(n)) throw new Error('non-finite');
+    if (Number.isInteger(n)) return n.toFixed(0);
+    return String(n);
+  }
+
+  function canon(v) {
+    if (v === null || v === undefined) return 'null';
+    var t = typeof v;
+    if (t === 'number') return numRepr(v);
+    if (t === 'boolean') return v ? 'true' : 'false';
+    if (t === 'string') return jsonStr(v);
+    if (Array.isArray(v)) {
+      var parts = [];
+      for (var i = 0; i < v.length; i++) parts.push(canon(v[i]));
+      return '[' + parts.join(',') + ']';
+    }
+    if (t === 'object') {
+      var keys = Object.keys(v).filter(function (k) { return v[k] !== undefined; }).sort();
+      var out = [];
+      for (var j = 0; j < keys.length; j++) out.push(jsonStr(keys[j]) + ':' + canon(v[keys[j]]));
+      return '{' + out.join(',') + '}';
+    }
+    throw new Error('unsupported type: ' + t);
+  }
+
+  function sha256HexOf(text) { return hex(sha256(utf8(text))); }
+
+  function eventHash(env) {
+    var row = {};
+    for (var k in env) if (k !== 'hash' && k !== 'sig') row[k] = env[k];
+    return 'sha256:' + sha256HexOf(canon(row));
+  }
+
+  function genesisHash(caseId) { return 'sha256:' + sha256HexOf('genesis\u0000' + caseId); }
+
+  function pemToRaw(pem) {
+    var body = String(pem).replace(/-----[^-]+-----/g, '').replace(/\s+/g, '');
+    var der = b64ToBytes(body);
+    return der.slice(der.length - 32);
+  }
+
+  // ───────────────────────── 主验证流程 ─────────────────────────
+  function verifyCase(input) {
+    var checks = [];
+    var events = [];
+    var lines = String(input.ledgerText || '').split(/\r?\n/).filter(function (l) { return l.trim(); });
+
+    function add(id, label, ok, detail) {
+      checks.push({ id: id, label: label, ok: ok, detail: detail || '' });
+      return ok;
+    }
+
+    // C1 解析
+    var parseErr = '';
+    for (var i = 0; i < lines.length; i++) {
+      try {
+        events.push(JSON.parse(lines[i]));
+      } catch (e) {
+        parseErr = '第 ' + (i + 1) + ' 行 JSON 解析失败';
+        break;
+      }
+    }
+    if (!add('C1', '账本可解析', !parseErr, parseErr || (lines.length + ' 条事件'))) {
+      return { ok: false, checks: checks, events: events };
+    }
+
+    // C2 seq 连续 + C3 链接 + C4 哈希
+    var seqOk = true, seqDetail = '', linkOk = true, linkDetail = '';
+    var hashOk = true, hashDetail = '';
+    for (i = 0; i < events.length; i++) {
+      var ev = events[i], n = i + 1;
+      if (ev.seq !== n) {
+        seqOk = false;
+        if (!seqDetail) seqDetail = '第 ' + n + ' 条 seq=' + ev.seq + '，应为 ' + n;
+      }
+      var expectedPrev = i === 0 ? genesisHash(ev.case_id || '') : events[i - 1].hash;
+      if (ev.prev_hash !== expectedPrev) {
+        linkOk = false;
+        if (!linkDetail) linkDetail = '第 ' + n + ' 条 prev_hash 不衔接';
+      }
+      var real = eventHash(ev);
+      if (real !== ev.hash) {
+        hashOk = false;
+        if (!hashDetail) hashDetail = '第 ' + n + ' 条重算 ' + real.slice(0, 23) + '…，账本记 ' + String(ev.hash).slice(0, 23) + '…';
+      }
+    }
+    add('C2', 'seq 连续', seqOk, seqDetail);
+    add('C3', '哈希链衔接', linkOk, linkDetail);
+    add('C4', '逐行哈希一致', hashOk, hashDetail);
+
+    // C5 签名
+    var sigOk = true, sigDetail = '', signed = 0, unsigned = 0, badLine = '';
+    var rawPub = null, fingerprint = '';
+    if (input.pubkeyPem) {
+      try {
+        rawPub = pemToRaw(input.pubkeyPem);
+        fingerprint = 'SHA256:' + sha256HexOf(String(input.pubkeyPem)).slice(0, 8) + '…';
+      } catch (e) {
+        sigOk = false; sigDetail = '公钥解析失败';
+      }
+    }
+    if (!rawPub && input.pubkeyRaw) {
+      rawPub = input.pubkeyRaw;
+    }
+    for (i = 0; i < events.length; i++) {
+      var e2 = events[i];
+      if (!e2.sig) { unsigned++; continue; }
+      if (!rawPub) { sigOk = false; sigDetail = '账本有签名但未提供公钥'; break; }
+      signed++;
+      var row = {};
+      for (var k in e2) if (k !== 'hash' && k !== 'sig') row[k] = e2[k];
+      var msg = utf8(canon(row));
+      var okSig = false;
+      try { okSig = ed25519Verify(rawPub, msg, b64ToBytes(e2.sig)); } catch (err) { okSig = false; }
+      if (!okSig && !badLine) badLine = '第 ' + (i + 1) + ' 条签名无效';
+      if (!okSig) sigOk = false;
+    }
+    if (!input.pubkeyPem && !input.pubkeyRaw) {
+      add('C5', '逐条签名有效', signed === 0, signed === 0 ? '账本未签名（旧格式）' : '缺少公钥');
+    } else {
+      add('C5', '逐条签名有效', sigOk && signed > 0, sigDetail || badLine || (signed + ' 条已签 · ' + unsigned + ' 条未签'));
+    }
+
+    // C6 结案摘要
+    var digestOk = true, digestDetail = '未结案';
+    var frozen = null;
+    for (i = 0; i < events.length; i++) if (events[i].event === 'CASE_FROZEN') frozen = events[i];
+    if (frozen) {
+      var st = {};
+      for (i = 0; i < events.length; i++) {
+        var ee = events[i], pp = ee.payload || {};
+        if (ee.event === 'FINDING') {
+          st[pp.finding_id] = { status: 'pending', severity: pp.severity, final: null };
+        } else if (ee.event === 'VERDICT' && st[pp.target_finding]) {
+          var f = st[pp.target_finding];
+          if (pp.ruling === 'overruled') f.status = 'overruled';
+          else {
+            f.status = 'sustained';
+            if (pp.ruling === 'reclassified' && pp.severity_final) f.final = pp.severity_final;
+          }
+        } else if (ee.event === 'RETRACT' && st[pp.target_finding]) {
+          st[pp.target_finding].status = 'retracted';
+        } else if (ee.event === 'RECHECK' && st[pp.target_finding]) {
+          st[pp.target_finding].status = pp.result === 'fixed' ? 'fixed' : 'not_fixed';
+        }
+      }
+      var counts = { sustained: 0, overruled: 0, retracted: 0 }, bySev = {};
+      for (var fid in st) {
+        var ff = st[fid];
+        if (ff.status === 'sustained' || ff.status === 'fixed' || ff.status === 'not_fixed') {
+          counts.sustained++;
+          var sv = ff.final || ff.severity;
+          bySev[sv] = (bySev[sv] || 0) + 1;
+        } else if (ff.status === 'overruled') counts.overruled++;
+        else if (ff.status === 'retracted') counts.retracted++;
+      }
+      counts.by_severity = bySev;
+      var declared = frozen.payload && frozen.payload.digest;
+      digestOk = canon(declared || {}) === canon(counts);
+      digestDetail = digestOk
+        ? '维持 ' + counts.sustained + ' · 驳回 ' + counts.overruled + ' · 撤回 ' + counts.retracted
+        : '账本声明 ' + canon(declared || {}) + '，重算 ' + canon(counts);
+    }
+    add('C6', '结案摘要一致', digestOk, digestDetail);
+
+    // C7 清单哈希
+    var manOk = true, manDetail = '无清单引用';
+    var opened = events[0] || {};
+    var art = (opened.payload || {}).artifact || {};
+    var manRef = art.manifest;
+    if (manRef && manRef.sha256) {
+      if (input.manifestText) {
+        var realMan = 'sha256:' + sha256HexOf(input.manifestText);
+        manOk = realMan === manRef.sha256;
+        manDetail = manOk ? '清单未被替换' : '清单哈希不符：期望 ' + String(manRef.sha256).slice(0, 23) + '…';
+      } else {
+        manDetail = '账本引用了清单，但未提供清单文件（跳过）';
+      }
+    }
+    add('C7', '被审清单一致', manOk, manDetail);
+
+    var ok = checks.every(function (c) { return c.ok; });
+    return {
+      ok: ok,
+      checks: checks,
+      events: events,
+      caseId: opened.case_id || '',
+      fingerprint: fingerprint,
+      signed: signed,
+      unsigned: unsigned
+    };
+  }
+
+  // ───────────────────────── 自检（已知向量）─────────────────────────
+  function selftest() {
+    var out = [];
+    var sha256abc = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
+    out.push(['SHA-256("abc")', hex(sha256(utf8('abc'))) === sha256abc]);
+
+    var sha512abc = 'ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a' +
+                    '2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f';
+    out.push(['SHA-512("abc")', hex(sha512(utf8('abc'))) === sha512abc]);
+
+    var empty512 = 'cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce' +
+                   '47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e';
+    out.push(['SHA-512("")', hex(sha512(new Uint8Array(0))) === empty512]);
+
+    out.push(['Ed25519 基点编码', hex(encPt(extPoint(BX, BY))).slice(0, 16) === '5866666666666666']);
+    return out;
+  }
+
+  return {
+    verifyCase: verifyCase,
+    selftest: selftest,
+    canon: canon,
+    sha256: sha256,
+    sha512: sha512,
+    ed25519Verify: ed25519Verify,
+    pemToRaw: pemToRaw,
+    eventHash: eventHash,
+    genesisHash: genesisHash
+  };
+});
+</script>
+<script type="application/json" id="bundled">{"caseId": "case-handoff", "ledgerText": "{\"actor\":{\"host_id\":\"local\",\"model\":\"arbiter/local\",\"role\":\"arbiter\",\"seat_id\":\"arbiter\",\"thread_id\":\"local\"},\"case_id\":\"case-handoff-rename\",\"event\":\"CASE_OPEN\",\"event_id\":\"evt_01M6S48VWH18ZPXC3Z9VHT9HWD\",\"hash\":\"sha256:0de99eb010ba71eefe2fcf5bb6efae1d1f6fb6be8864ca74de5e74248ca871ee\",\"lease\":{\"expires_at\":\"2026-11-14T03:09:51.887870+08:00\",\"lease_hash\":\"sha256:d67a09f2dc8112c1fd47145a9145b3c28f5eb74ab1adf279e5d2c9c35feb5333\",\"lease_id\":\"lease-arbiter\"},\"payload\":{\"artifact\":{\"artifact_id\":\"rename_batch.py\",\"kind\":\"code\",\"manifest\":{\"path\":\"artifact.manifest.json\",\"sha256\":\"sha256:530fd810852d5435b595ea4c472aa62f558d4eeeb0c49bbd4b155e73e054d714\"},\"snapshot_hash\":\"sha256:aecde8228e2d82b6d06fe6e15653dd2d2da48bf8a7d098e8bbe02d280ce53bf9\",\"uri\":\"artifact/\"},\"dimensions\":[\"logic\",\"security\"],\"max_rounds\":3,\"min_findings\":{\"logic\":2,\"security\":1},\"rigor\":\"standard\"},\"phase\":\"opening\",\"prev_hash\":\"sha256:78e80175b66e2152afad339efa3ca3e80c4441ade2dccedc27b7fb5715ea9ddb\",\"schema\":\"review-ledger/0.5\",\"seq\":1,\"sig\":\"HeEezP3+GvfBnpVSA04i1IekGBhezz1o3dMfMf2jD8Yrybc/ip5ZEgM0xExOTkKNqLQ9zKRRDJCiID1aFfYUAQ==\",\"ts\":\"2026-11-07T03:09:51.889299+08:00\"}\n{\"actor\":{\"host_id\":\"local\",\"model\":\"arbiter/local\",\"role\":\"arbiter\",\"seat_id\":\"arbiter\",\"thread_id\":\"local\"},\"case_id\":\"case-handoff-rename\",\"event\":\"SEAT_GRANTED\",\"event_id\":\"evt_01M6S48VWTF21BBE04RTNYBFZR\",\"hash\":\"sha256:7e29d6af3af32156da87d3b2c78b9f55c1cd60665cb3d3c4a1145fedf5ffaaae\",\"lease\":{\"expires_at\":\"2026-11-14T03:09:51.887870+08:00\",\"lease_hash\":\"sha256:d67a09f2dc8112c1fd47145a9145b3c28f5eb74ab1adf279e5d2c9c35feb5333\",\"lease_id\":\"lease-arbiter\"},\"payload\":{\"assignee\":{\"host_id\":\"local\",\"model\":\"reviewer/static\",\"thread_id\":\"local\",\"vendor\":\"reviewer\"},\"blind\":true,\"dimensions\":[\"logic\",\"security\"],\"lease\":{\"expires_at\":\"2026-11-07T07:09:51.891953+08:00\",\"lease_hash\":\"sha256:a7920b91be79fd14769bd1cb78f9243eeee912dbc79b35988e10e7e6feb629ea\",\"lease_id\":\"lease-S-01\"},\"role\":\"reviewer\",\"seat_id\":\"S-01\"},\"phase\":\"opening\",\"prev_hash\":\"sha256:0de99eb010ba71eefe2fcf5bb6efae1d1f6fb6be8864ca74de5e74248ca871ee\",\"schema\":\"review-ledger/0.5\",\"seq\":2,\"sig\":\"6JTcSoSVyHTqctOJctZ1kvef6SAnfS2Mjlaa3UD4466w0X9JkJrV58vZlCitpQ7QgEUnx68OpEIbBnY8S+cDAQ==\",\"ts\":\"2026-11-07T03:09:51.898103+08:00\"}\n{\"actor\":{\"host_id\":\"local\",\"model\":\"reviewer/static\",\"role\":\"reviewer\",\"seat_id\":\"S-01\",\"thread_id\":\"local\"},\"case_id\":\"case-handoff-rename\",\"event\":\"FINDING\",\"event_id\":\"evt_01M6S48VX23WAPF4BYPPBGGCQY\",\"hash\":\"sha256:c88b1d0979ec5942eb1455014b2770d006bd1c863f34250f26c7c19e7fbe1f4a\",\"lease\":{\"expires_at\":\"2026-11-07T07:09:51.891953+08:00\",\"lease_hash\":\"sha256:a7920b91be79fd14769bd1cb78f9243eeee912dbc79b35988e10e7e6feb629ea\",\"lease_id\":\"lease-S-01\"},\"payload\":{\"claim\":\"通配符没有过滤目录，子目录会被当成文件改名\",\"dimension\":\"logic\",\"evidence\":[{\"content\":\"files = sorted(glob.glob(os.path.join(folder, \\\"*\\\")))\",\"kind\":\"quote\",\"uri\":\"rename_batch.py:15\"}],\"finding_id\":\"F-001\",\"location\":{\"locator\":\"artifact/rename_batch.py:15\",\"quote\":\"glob.glob(os.path.join(folder, \\\"*\\\"))\"},\"severity\":\"MAJOR\",\"suggestion\":\"只取普通文件：files = [p for p in ... if os.path.isfile(p)]；遇到目录跳过。\"},\"phase\":\"blind\",\"prev_hash\":\"sha256:7e29d6af3af32156da87d3b2c78b9f55c1cd60665cb3d3c4a1145fedf5ffaaae\",\"schema\":\"review-ledger/0.5\",\"seq\":3,\"sig\":\"fUVot40SjvorFraqLUPyLHCB5hyffZ5okXnZF1fC8hV4WvQ1iN5zlrxxriwiCu+zr0l1e+GkgF+uDA4RhTP+Dw==\",\"ts\":\"2026-11-07T03:09:51.900563+08:00\"}\n{\"actor\":{\"host_id\":\"local\",\"model\":\"reviewer/static\",\"role\":\"reviewer\",\"seat_id\":\"S-01\",\"thread_id\":\"local\"},\"case_id\":\"case-handoff-rename\",\"event\":\"FINDING\",\"event_id\":\"evt_01M6S48VXB7RDZWP7GHA5M0966\",\"hash\":\"sha256:40ccb989971436a1d1ffdd3d4c40ecf66cc5a34d12d5ba76c9f439708e4fc644\",\"lease\":{\"expires_at\":\"2026-11-07T07:09:51.891953+08:00\",\"lease_hash\":\"sha256:a7920b91be79fd14769bd1cb78f9243eeee912dbc79b35988e10e7e6feb629ea\",\"lease_id\":\"lease-S-01\"},\"payload\":{\"claim\":\"目标已存在时静默覆盖，批量改名不可回滚\",\"dimension\":\"security\",\"evidence\":[{\"content\":\"os.rename(path, new)\",\"kind\":\"quote\",\"uri\":\"rename_batch.py:19\"}],\"finding_id\":\"F-002\",\"location\":{\"locator\":\"artifact/rename_batch.py:17-19\",\"quote\":\"os.rename(path, new)\"},\"severity\":\"MAJOR\",\"suggestion\":\"改名前列出冲突目标并中止；输出映射表用于回滚。\"},\"phase\":\"blind\",\"prev_hash\":\"sha256:c88b1d0979ec5942eb1455014b2770d006bd1c863f34250f26c7c19e7fbe1f4a\",\"schema\":\"review-ledger/0.5\",\"seq\":4,\"sig\":\"X9MQFw/sB4cF+ad2mIfre1d2MoSZsstPwX3wwhyDkT7Ytvn5dqiRaOjBmgnSUVKrxhlqi70DgClTf2lTA3hrAg==\",\"ts\":\"2026-11-07T03:09:51.908843+08:00\"}\n{\"actor\":{\"host_id\":\"local\",\"model\":\"reviewer/static\",\"role\":\"reviewer\",\"seat_id\":\"S-01\",\"thread_id\":\"local\"},\"case_id\":\"case-handoff-rename\",\"event\":\"FINDING\",\"event_id\":\"evt_01M6S48VXKGY0CWT9XYFPH693A\",\"hash\":\"sha256:5c4dc7be2d761d38b0ef4926bf70e0fa119dfd3363a767378f150d2df2398e64\",\"lease\":{\"expires_at\":\"2026-11-07T07:09:51.891953+08:00\",\"lease_hash\":\"sha256:a7920b91be79fd14769bd1cb78f9243eeee912dbc79b35988e10e7e6feb629ea\",\"lease_id\":\"lease-S-01\"},\"payload\":{\"claim\":\"没有 dry-run，批量操作无法预演\",\"dimension\":\"logic\",\"evidence\":[{\"content\":\"if len(sys.argv) != 3:\",\"kind\":\"quote\",\"uri\":\"rename_batch.py:25\"}],\"finding_id\":\"F-003\",\"location\":{\"locator\":\"artifact/rename_batch.py:25-28\",\"quote\":\"len(sys.argv) != 3\"},\"severity\":\"MINOR\",\"suggestion\":\"加 --dry-run，打印将要发生的改名而不真正执行。\"},\"phase\":\"blind\",\"prev_hash\":\"sha256:40ccb989971436a1d1ffdd3d4c40ecf66cc5a34d12d5ba76c9f439708e4fc644\",\"schema\":\"review-ledger/0.5\",\"seq\":5,\"sig\":\"yCrX7DQQbVHd6AMlgxophxxHlRMlsWus2dZsbR79gQYZksJg6dmY1jjiPOzqq40XUqTis0KiP7qcF9bsBRS6Dg==\",\"ts\":\"2026-11-07T03:09:51.917765+08:00\"}\n{\"actor\":{\"host_id\":\"local\",\"model\":\"reviewer/static\",\"role\":\"reviewer\",\"seat_id\":\"S-01\",\"thread_id\":\"local\"},\"case_id\":\"case-handoff-rename\",\"event\":\"SCAN_DONE\",\"event_id\":\"evt_01M6S48VXVYB686SQ8AWD5ZZ20\",\"hash\":\"sha256:d7efa893df35f57765509130de6bd53104aaa5b15b0030921e1083331dab9821\",\"lease\":{\"expires_at\":\"2026-11-07T07:09:51.891953+08:00\",\"lease_hash\":\"sha256:a7920b91be79fd14769bd1cb78f9243eeee912dbc79b35988e10e7e6feb629ea\",\"lease_id\":\"lease-S-01\"},\"payload\":{\"checklist\":[{\"item\":\"边界输入（空目录 / 子目录）\",\"result\":\"flag\"},{\"item\":\"可预演性\",\"result\":\"flag\"}],\"dimension\":\"logic\",\"findings_submitted\":2},\"phase\":\"blind\",\"prev_hash\":\"sha256:5c4dc7be2d761d38b0ef4926bf70e0fa119dfd3363a767378f150d2df2398e64\",\"schema\":\"review-ledger/0.5\",\"seq\":6,\"sig\":\"B4dOelKMTzLFFQs2JqyFqFbqVSfP9yw30eFvRl0Nbo4sWqFOamAijkraaNHbtDggsZt1Ux4LZshohbaPwnx/AA==\",\"ts\":\"2026-11-07T03:09:51.925255+08:00\"}\n{\"actor\":{\"host_id\":\"local\",\"model\":\"reviewer/static\",\"role\":\"reviewer\",\"seat_id\":\"S-01\",\"thread_id\":\"local\"},\"case_id\":\"case-handoff-rename\",\"event\":\"SCAN_DONE\",\"event_id\":\"evt_01M6S48VY3HNDB0ZSYM14ZWCBH\",\"hash\":\"sha256:8afc055335bf0adeb4e71b393f32ceba8ff446bed6cd5de1025409956ba31707\",\"lease\":{\"expires_at\":\"2026-11-07T07:09:51.891953+08:00\",\"lease_hash\":\"sha256:a7920b91be79fd14769bd1cb78f9243eeee912dbc79b35988e10e7e6feb629ea\",\"lease_id\":\"lease-S-01\"},\"payload\":{\"checklist\":[{\"item\":\"数据覆盖风险\",\"result\":\"flag\"}],\"dimension\":\"security\",\"findings_submitted\":1},\"phase\":\"blind\",\"prev_hash\":\"sha256:d7efa893df35f57765509130de6bd53104aaa5b15b0030921e1083331dab9821\",\"schema\":\"review-ledger/0.5\",\"seq\":7,\"sig\":\"ibLsMGXFUk26pRQAEOLKxgwFsYwCUw2CS+zygWd/JQRmMBmiZevS8WcUMt8sCg9lmDqcEurrbEW9WWorpAbNAg==\",\"ts\":\"2026-11-07T03:09:51.932981+08:00\"}\n{\"actor\":{\"host_id\":\"local\",\"model\":\"arbiter/local\",\"role\":\"arbiter\",\"seat_id\":\"arbiter\",\"thread_id\":\"local\"},\"case_id\":\"case-handoff-rename\",\"event\":\"VERDICT\",\"event_id\":\"evt_01M6S48VYC80AH9S9Q9AQZ3W4Y\",\"hash\":\"sha256:4b8ae1b3da39248df282a303d9ca3c3b93fda90a808451c7239514deeb4014a0\",\"lease\":{\"expires_at\":\"2026-11-14T03:09:51.887870+08:00\",\"lease_hash\":\"sha256:d67a09f2dc8112c1fd47145a9145b3c28f5eb74ab1adf279e5d2c9c35feb5333\",\"lease_id\":\"lease-arbiter\"},\"payload\":{\"cites\":[],\"rationale\":\"证据明确，可复现，维持原判。\",\"ruling\":\"sustained\",\"target_finding\":\"F-001\",\"verdict_id\":\"V-001\"},\"phase\":\"cross\",\"prev_hash\":\"sha256:8afc055335bf0adeb4e71b393f32ceba8ff446bed6cd5de1025409956ba31707\",\"schema\":\"review-ledger/0.5\",\"seq\":8,\"sig\":\"18vP+Fc/F7H+BeK77rYJGoX9QWv1+3urAQ/RrkonYfuz0ImGiIY5dNzVhpeBE4G1W3+SqLIXkKNnDsW83MckBw==\",\"ts\":\"2026-11-07T03:09:51.942124+08:00\"}\n{\"actor\":{\"host_id\":\"local\",\"model\":\"arbiter/local\",\"role\":\"arbiter\",\"seat_id\":\"arbiter\",\"thread_id\":\"local\"},\"case_id\":\"case-handoff-rename\",\"event\":\"VERDICT\",\"event_id\":\"evt_01M6S48VYNJZ2J00EN72B167PG\",\"hash\":\"sha256:ade12c13b453b23a5880847807ba29fee214c662e6d73603ef7829553da49f49\",\"lease\":{\"expires_at\":\"2026-11-14T03:09:51.887870+08:00\",\"lease_hash\":\"sha256:d67a09f2dc8112c1fd47145a9145b3c28f5eb74ab1adf279e5d2c9c35feb5333\",\"lease_id\":\"lease-arbiter\"},\"payload\":{\"cites\":[],\"rationale\":\"证据明确，可复现，维持原判。\",\"ruling\":\"sustained\",\"target_finding\":\"F-002\",\"verdict_id\":\"V-002\"},\"phase\":\"cross\",\"prev_hash\":\"sha256:4b8ae1b3da39248df282a303d9ca3c3b93fda90a808451c7239514deeb4014a0\",\"schema\":\"review-ledger/0.5\",\"seq\":9,\"sig\":\"gczpE3QH+1AYJ9rT1hATHNMoq5GsKgqTT0ZVOnYwa+FCEsO7ad4zdvw7prgX+ZJwSBf40iz07hIuwK1Y68NgBQ==\",\"ts\":\"2026-11-07T03:09:51.951083+08:00\"}\n{\"actor\":{\"host_id\":\"local\",\"model\":\"arbiter/local\",\"role\":\"arbiter\",\"seat_id\":\"arbiter\",\"thread_id\":\"local\"},\"case_id\":\"case-handoff-rename\",\"event\":\"VERDICT\",\"event_id\":\"evt_01M6S48VYYN9BRY1RPFK3BC3CA\",\"hash\":\"sha256:7fb03a7a96d58214b0b72f6fc64b9431f6a150205825701c916b34c74efc14fe\",\"lease\":{\"expires_at\":\"2026-11-14T03:09:51.887870+08:00\",\"lease_hash\":\"sha256:d67a09f2dc8112c1fd47145a9145b3c28f5eb74ab1adf279e5d2c9c35feb5333\",\"lease_id\":\"lease-arbiter\"},\"payload\":{\"cites\":[],\"rationale\":\"证据明确，可复现，维持原判。\",\"ruling\":\"sustained\",\"target_finding\":\"F-003\",\"verdict_id\":\"V-003\"},\"phase\":\"cross\",\"prev_hash\":\"sha256:ade12c13b453b23a5880847807ba29fee214c662e6d73603ef7829553da49f49\",\"schema\":\"review-ledger/0.5\",\"seq\":10,\"sig\":\"gb/kOspET4gT4+bqx/etSaZ7NhjeiH6PJn55zz4ILv1Ic2+j6gPdjJQu4+IZYnp6ooE/FQjDIxTh12Y5VUISDQ==\",\"ts\":\"2026-11-07T03:09:51.960103+08:00\"}\n{\"actor\":{\"host_id\":\"local\",\"model\":\"arbiter/local\",\"role\":\"arbiter\",\"seat_id\":\"arbiter\",\"thread_id\":\"local\"},\"case_id\":\"case-handoff-rename\",\"event\":\"CASE_FROZEN\",\"event_id\":\"evt_01M6S48VZ80AC752BGKET661DM\",\"hash\":\"sha256:a155fbd2784f2d16b1bc9fa800cca7efd7816509eab1fb8f8294634b9f867ce1\",\"lease\":{\"expires_at\":\"2026-11-14T03:09:51.887870+08:00\",\"lease_hash\":\"sha256:d67a09f2dc8112c1fd47145a9145b3c28f5eb74ab1adf279e5d2c9c35feb5333\",\"lease_id\":\"lease-arbiter\"},\"payload\":{\"archive\":{\"frozen_snapshot_hash\":\"sha256:564b841296023c0f25fa7775d93154b97a40a3028ff7fdcd85d7e0ade1eabb8a\",\"memory_candidates\":[]},\"conditions\":[\"F-001 过滤目录，只处理普通文件\",\"F-002 目标冲突时中止，并提供回滚映射\",\"F-003 增加 --dry-run\"],\"countersign\":\"\",\"digest\":{\"by_severity\":{\"MAJOR\":2,\"MINOR\":1},\"overruled\":0,\"retracted\":0,\"sustained\":3},\"release\":\"reject\"},\"phase\":\"remediation\",\"prev_hash\":\"sha256:7fb03a7a96d58214b0b72f6fc64b9431f6a150205825701c916b34c74efc14fe\",\"schema\":\"review-ledger/0.5\",\"seq\":11,\"sig\":\"2Pt9blwAXTgdtvqWWAAXxq7AzdwEI9iacjRjyUg8S5AvfldUo0w+1Qu1LDDlb578+7c30IUom53Y5Ew4C4xhDg==\",\"ts\":\"2026-11-07T03:09:51.975583+08:00\"}\n", "pubkeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEARQao64R0Ahzvd833Sm66E4MGSDeFe4P7WJCzuqJUU54=\n-----END PUBLIC KEY-----\n", "manifestText": "{\"files\":[{\"path\":\"rename_batch.py\",\"sha256\":\"sha256:21ee22053613625247fd63cecae789be6431187f45de75aa223963948a134d3a\",\"size\":731}],\"generated_at\":\"2026-11-07T03:09:51.888723+08:00\",\"root\":\"artifact\",\"schema\":\"review-artifact/1\"}"}</script>
+<script>
+(function () {
+  'use strict';
+  var stage = document.getElementById('stage');
+  var note = document.getElementById('note');
+  var grid = document.getElementById('grid');
+  var checksEl = document.getElementById('checks');
+  var eventsEl = document.getElementById('events');
+  var sub = document.getElementById('sub');
+  var fpEl = document.getElementById('fp');
+
+  var B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  function base32(bytes) {
+    var bits = 0, value = 0, out = '';
+    for (var i = 0; i < bytes.length; i++) {
+      value = (value << 8) | bytes[i]; bits += 8;
+      while (bits >= 5) { out += B32[(value >>> (bits - 5)) & 31]; bits -= 5; }
+    }
+    if (bits > 0) out += B32[(value << (5 - bits)) & 31];
+    return out;
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+    });
+  }
+
+  var EV = { CASE_OPEN: '立案', SEAT_GRANTED: '发席', FINDING: '提交缺陷', SCAN_DONE: '交卷',
+             CHALLENGE: '质证', RETRACT: '撤回', REBUTTAL: '反驳', APPEAL: '申诉',
+             VERDICT: '裁定', REVISE: '修复', RECHECK: '复审', CASE_FROZEN: '结案' };
+
+  function render(input) {
+    stage.className = 'stage pending';
+    stage.getElementsByClassName('icon')[0].textContent = '⏳';
+    stage.getElementsByClassName('txt')[0].textContent = '正在校验…';
+    note.textContent = '';
+
+    var r;
+    try {
+      r = AuditXVerify.verifyCase(input);
+    } catch (e) {
+      stage.className = 'stage fail';
+      stage.getElementsByClassName('icon')[0].textContent = '✕';
+      stage.getElementsByClassName('txt')[0].textContent = '校验出错';
+      note.textContent = String(e && e.message || e);
+      return;
+    }
+
+    var failed = r.checks.filter(function (c) { return !c.ok; });
+    stage.className = 'stage ' + (r.ok ? 'pass' : 'fail');
+    stage.getElementsByClassName('icon')[0].textContent = r.ok ? '✓' : '✕';
+    stage.getElementsByClassName('txt')[0].textContent = r.ok ? '验证通过' : '验证未通过';
+    note.textContent = r.ok
+      ? '账本未被篡改，签名有效，摘要与清单一致。'
+      : '发现 ' + failed.length + ' 项问题：' + failed.map(function (c) { return c.label; }).join('、');
+
+    sub.textContent = (r.caseId || input.caseId || '案件') + ' · ' + r.events.length + ' 条事件';
+
+    var fp = '—';
+    if (input.pubkeyPem) {
+      try {
+        var raw = AuditXVerify.pemToRaw(input.pubkeyPem);
+        fp = 'SHA256:' + base32(AuditXVerify.sha256(raw)).slice(0, 32);
+      } catch (e) { fp = '公钥解析失败'; }
+    }
+    fpEl.textContent = fp;
+
+    var cells = [
+      ['事件数', String(r.events.length)],
+      ['已签名', r.signed + ' 条'],
+      ['校验项', r.checks.filter(function (c) { return c.ok; }).length + ' / ' + r.checks.length + ' 通过']
+    ];
+    grid.innerHTML = cells.map(function (c) {
+      return '<div class="cell"><div class="k">' + c[0] + '</div><div class="v">' + esc(c[1]) + '</div></div>';
+    }).join('');
+
+    checksEl.innerHTML = r.checks.map(function (c) {
+      return '<li><span class="ci">' + (c.ok ? '✅' : '❌') + '</span>' +
+             '<span class="cl">' + esc(c.label) + '</span>' +
+             '<span class="cd">' + esc(c.detail) + '</span></li>';
+    }).join('');
+
+    eventsEl.innerHTML = r.events.map(function (ev) {
+      var p = ev.payload || {};
+      var what = EV[ev.event] || ev.event;
+      if (ev.event === 'FINDING') what += ' · ' + (p.severity || '') + ' ' + (p.claim || '');
+      return '<tr><td class="dim">' + ev.seq + '</td>' +
+             '<td>' + esc(what) + '</td>' +
+             '<td class="dim">' + esc((ev.actor || {}).seat_id) + '</td>' +
+             '<td class="mono dim">' + esc(String(ev.ts || '').slice(0, 19).replace('T', ' ')) + '</td></tr>';
+    }).join('');
+  }
+
+  function readFile(input, cb) {
+    var f = input.files && input.files[0];
+    if (!f) { cb(null); return; }
+    var r = new FileReader();
+    r.onload = function () { cb(String(r.result)); };
+    r.readAsText(f, 'utf-8');
+  }
+
+  // 自动校验内置案件
+  var bundled = null;
+  try {
+    bundled = JSON.parse(document.getElementById('bundled').textContent);
+  } catch (e) { bundled = null; }
+
+  if (bundled && bundled.ledgerText) {
+    render(bundled);
+  } else {
+    stage.getElementsByClassName('txt')[0].textContent = '请选择案件文件';
+    sub.textContent = '未内置案件';
+  }
+
+  document.getElementById('btn-run').onclick = function () {
+    var ledger = document.getElementById('f-ledger');
+    var pub = document.getElementById('f-pub');
+    var man = document.getElementById('f-man');
+    if (!ledger.files.length) { alert('请先选择账本文件 findings.jsonl'); return; }
+    readFile(ledger, function (lt) {
+      readFile(pub, function (pk) {
+        readFile(man, function (mt) {
+          render({ ledgerText: lt, pubkeyPem: pk || '', manifestText: mt || '' });
+        });
+      });
+    });
+  };
+})();
+</script>
+</body></html>

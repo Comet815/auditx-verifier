@@ -1,0 +1,111 @@
+{
+  "case": {
+    "artifact": {
+      "artifact_id": "rename_batch.py",
+      "kind": "code",
+      "manifest": {
+        "path": "artifact.manifest.json",
+        "sha256": "sha256:530fd810852d5435b595ea4c472aa62f558d4eeeb0c49bbd4b155e73e054d714"
+      },
+      "snapshot_hash": "sha256:aecde8228e2d82b6d06fe6e15653dd2d2da48bf8a7d098e8bbe02d280ce53bf9",
+      "uri": "artifact/"
+    },
+    "dimensions": [
+      "logic",
+      "security"
+    ],
+    "max_rounds": 3,
+    "min_findings": {
+      "logic": 2,
+      "security": 1
+    },
+    "rigor": "standard"
+  },
+  "case_id": "case-handoff-rename",
+  "digest": {
+    "by_severity": {
+      "MAJOR": 2,
+      "MINOR": 1
+    },
+    "overruled": 0,
+    "retracted": 0,
+    "sustained": 3
+  },
+  "findings": {
+    "F-001": {
+      "dimension": "logic",
+      "rechecks": [],
+      "severity": "MAJOR",
+      "severity_final": null,
+      "status": "sustained",
+      "verdict_chain": [
+        "V-001"
+      ]
+    },
+    "F-002": {
+      "dimension": "security",
+      "rechecks": [],
+      "severity": "MAJOR",
+      "severity_final": null,
+      "status": "sustained",
+      "verdict_chain": [
+        "V-002"
+      ]
+    },
+    "F-003": {
+      "dimension": "logic",
+      "rechecks": [],
+      "severity": "MINOR",
+      "severity_final": null,
+      "status": "sustained",
+      "verdict_chain": [
+        "V-003"
+      ]
+    }
+  },
+  "head": {
+    "hash": "sha256:a155fbd2784f2d16b1bc9fa800cca7efd7816509eab1fb8f8294634b9f867ce1",
+    "seq": 11
+  },
+  "phase": "frozen",
+  "release": "reject",
+  "rounds": {
+    "current": 0,
+    "max": 3
+  },
+  "scan": [
+    "S-01|logic",
+    "S-01|security"
+  ],
+  "seats": {
+    "S-01": {
+      "assignee": {
+        "host_id": "local",
+        "model": "reviewer/static",
+        "thread_id": "local",
+        "vendor": "reviewer"
+      },
+      "blind": true,
+      "dimensions": [
+        "logic",
+        "security"
+      ],
+      "granted_seq": 2,
+      "lease_expires_at": "2026-11-07T07:09:51.891953+08:00",
+      "role": "reviewer"
+    },
+    "arbiter": {
+      "assignee": {
+        "model": "arbiter/local"
+      },
+      "blind": false,
+      "dimensions": [
+        "logic",
+        "security"
+      ],
+      "granted_seq": 1,
+      "lease_expires_at": "2026-11-14T03:09:51.887870+08:00",
+      "role": "arbiter"
+    }
+  }
+}
