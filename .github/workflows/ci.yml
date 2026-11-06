@@ -6,8 +6,12 @@ on:
 
 jobs:
   python:
-    name: CLI verifier (V1-V11)
-    runs-on: ubuntu-latest
+    name: CLI verifier (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -17,8 +21,12 @@ jobs:
       - run: python verify_review_brain.py examples/case-demo
 
   browser:
-    name: JS kernel (16 checks)
-    runs-on: ubuntu-latest
+    name: JS kernel (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
