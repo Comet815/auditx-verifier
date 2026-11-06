@@ -464,4 +464,9 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
+    # Windows 控制台默认不是 UTF-8（cp936/cp1252），直接打印中文会抛 UnicodeEncodeError。
+    # 客户机器上一跑就崩的那种，必须在这里兜住。
+    for _s in (sys.stdout, sys.stderr):
+        if hasattr(_s, "reconfigure"):
+            _s.reconfigure(encoding="utf-8", errors="replace")
     sys.exit(main())
