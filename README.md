@@ -1,5 +1,7 @@
 # AuditX Verifier
 
+**中文** · [English](README.en.md)
+
 ![verify](https://github.com/Comet815/auditx-verifier/actions/workflows/ci.yml/badge.svg)
 
 > **别信我，自己算。**
