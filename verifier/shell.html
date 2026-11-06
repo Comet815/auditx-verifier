@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>__TITLE__</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:#0b0e16; color:#e5e7eb; line-height:1.65;
+         font-family:"Microsoft YaHei","Segoe UI",system-ui,sans-serif; }
+  .wrap { max-width:980px; margin:0 auto; padding:44px 32px 72px; }
+  .brand { color:#67e8f9; letter-spacing:3px; font-size:12px; }
+  h1 { font-size:30px; margin:6px 0 4px; letter-spacing:1px; }
+  .sub { color:#8b98ad; font-size:14px; }
+  .stage { border-radius:16px; padding:26px 28px; margin:26px 0 20px; border:1px solid; }
+  .stage.pending { background:#0f1420; border-color:#1e293b; color:#94a3b8; }
+  .stage.pass { background:#07160f; border-color:#14532d; }
+  .stage.fail { background:#1c0a10; border-color:#7f1d1d; }
+  .stage .icon { font-size:44px; line-height:1; }
+  .stage .txt { font-size:26px; font-weight:700; letter-spacing:2px; margin-top:6px; }
+  .pass .txt { color:#4ade80; } .fail .txt { color:#fb7185; }
+  .stage .note { color:#94a3b8; font-size:13.5px; margin-top:6px; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:26px; }
+  .cell { background:#0f1420; border:1px solid #1e293b; border-radius:12px; padding:12px 15px; }
+  .cell .k { color:#64748b; font-size:11.5px; letter-spacing:2px; }
+  .cell .v { font-size:16px; font-weight:600; margin-top:3px; word-break:break-all; }
+  h2 { font-size:17px; color:#cbd5e1; margin:28px 0 12px; letter-spacing:1px; }
+  ul.checks { list-style:none; margin:0; padding:0; }
+  ul.checks li { display:flex; gap:12px; align-items:flex-start; padding:9px 12px;
+                 border-bottom:1px solid #131a26; font-size:14px; }
+  ul.checks .ci { width:22px; flex:none; }
+  ul.checks .cl { flex:none; width:150px; color:#cbd5e1; }
+  ul.checks .cd { color:#64748b; font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; color:#64748b; font-weight:500; padding:7px 9px; border-bottom:1px solid #1e293b; }
+  td { padding:7px 9px; border-bottom:1px solid #131a26; vertical-align:top; }
+  .mono { font-family:Consolas,monospace; }
+  .dim { color:#64748b; }
+  .manual { margin-top:30px; background:#0f1420; border:1px solid #1e293b; border-radius:12px; padding:16px 18px; }
+  .manual summary { cursor:pointer; color:#67e8f9; font-size:14px; }
+  .row { display:flex; gap:10px; align-items:center; margin:10px 0; font-size:13.5px; color:#94a3b8; flex-wrap:wrap; }
+  .row input[type=file] { color:#94a3b8; }
+  button { background:#0e7490; color:#fff; border:0; border-radius:8px; padding:9px 20px;
+           font-size:14px; cursor:pointer; font-family:inherit; }
+  button:hover { background:#0891b2; }
+  .foot { margin-top:34px; border-top:1px solid #1e293b; padding-top:16px;
+          color:#475569; font-size:12.5px; }
+  .fp { font-family:Consolas,monospace; color:#a78bfa; }
+</style></head>
+<body><div class="wrap">
+
+  <div class="brand">青北鹿 · AUDITX 审查庭</div>
+  <h1>离线验证</h1>
+  <div class="sub" id="sub">正在读取…</div>
+
+  <div class="stage pending" id="stage">
+    <div class="icon">⏳</div>
+    <div class="txt">正在校验…</div>
+    <div class="note" id="note"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <h2>校验明细</h2>
+  <ul class="checks" id="checks"></ul>
+
+  <h2>账本事件</h2>
+  <table><thead><tr><th style="width:44px">#</th><th>事件</th><th>席位</th><th>时间</th></tr></thead>
+  <tbody id="events"></tbody></table>
+
+  <details class="manual">
+    <summary>验证其他案件（手动选择文件）</summary>
+    <div class="row">账本 <input type="file" id="f-ledger" accept=".jsonl,.json,.txt"></div>
+    <div class="row">公钥 <input type="file" id="f-pub" accept=".pem,.txt"></div>
+    <div class="row">清单 <input type="file" id="f-man" accept=".json,.txt">（可选）</div>
+    <div class="row"><button id="btn-run">开始校验</button></div>
+  </details>
+
+  <div class="foot">
+    <p>本页在<strong>你的浏览器本地</strong>完成全部计算：哈希链重算、Ed25519 逐条验签、结案摘要重算、被审清单核对。
+       不联网、不上传、不依赖 Python。</p>
+    <p>公钥指纹：<span class="fp" id="fp">—</span></p>
+    <p>需要 Chrome 67+ / Edge 79+；Windows 7 可安装 Chrome 109。更完整的业务规则复核（阶段、权限、租约、冻结），
+       请运行 <code>python verify_review_brain.py &lt;案件目录&gt;</code>。</p>
+  </div>
+
+</div>
+
+<script>/*__CORE__*/</script>
+<script type="application/json" id="bundled">__BUNDLED__</script>
+<script>
+(function () {
+  'use strict';
+  var stage = document.getElementById('stage');
+  var note = document.getElementById('note');
+  var grid = document.getElementById('grid');
+  var checksEl = document.getElementById('checks');
+  var eventsEl = document.getElementById('events');
+  var sub = document.getElementById('sub');
+  var fpEl = document.getElementById('fp');
+
+  var B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  function base32(bytes) {
+    var bits = 0, value = 0, out = '';
+    for (var i = 0; i < bytes.length; i++) {
+      value = (value << 8) | bytes[i]; bits += 8;
+      while (bits >= 5) { out += B32[(value >>> (bits - 5)) & 31]; bits -= 5; }
+    }
+    if (bits > 0) out += B32[(value << (5 - bits)) & 31];
+    return out;
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+    });
+  }
+
+  var EV = { CASE_OPEN: '立案', SEAT_GRANTED: '发席', FINDING: '提交缺陷', SCAN_DONE: '交卷',
+             CHALLENGE: '质证', RETRACT: '撤回', REBUTTAL: '反驳', APPEAL: '申诉',
+             VERDICT: '裁定', REVISE: '修复', RECHECK: '复审', CASE_FROZEN: '结案' };
+
+  function render(input) {
+    stage.className = 'stage pending';
+    stage.getElementsByClassName('icon')[0].textContent = '⏳';
+    stage.getElementsByClassName('txt')[0].textContent = '正在校验…';
+    note.textContent = '';
+
+    var r;
+    try {
+      r = AuditXVerify.verifyCase(input);
+    } catch (e) {
+      stage.className = 'stage fail';
+      stage.getElementsByClassName('icon')[0].textContent = '✕';
+      stage.getElementsByClassName('txt')[0].textContent = '校验出错';
+      note.textContent = String(e && e.message || e);
+      return;
+    }
+
+    var failed = r.checks.filter(function (c) { return !c.ok; });
+    stage.className = 'stage ' + (r.ok ? 'pass' : 'fail');
+    stage.getElementsByClassName('icon')[0].textContent = r.ok ? '✓' : '✕';
+    stage.getElementsByClassName('txt')[0].textContent = r.ok ? '验证通过' : '验证未通过';
+    note.textContent = r.ok
+      ? '账本未被篡改，签名有效，摘要与清单一致。'
+      : '发现 ' + failed.length + ' 项问题：' + failed.map(function (c) { return c.label; }).join('、');
+
+    sub.textContent = (r.caseId || input.caseId || '案件') + ' · ' + r.events.length + ' 条事件';
+
+    var fp = '—';
+    if (input.pubkeyPem) {
+      try {
+        var raw = AuditXVerify.pemToRaw(input.pubkeyPem);
+        fp = 'SHA256:' + base32(AuditXVerify.sha256(raw)).slice(0, 32);
+      } catch (e) { fp = '公钥解析失败'; }
+    }
+    fpEl.textContent = fp;
+
+    var cells = [
+      ['事件数', String(r.events.length)],
+      ['已签名', r.signed + ' 条'],
+      ['校验项', r.checks.filter(function (c) { return c.ok; }).length + ' / ' + r.checks.length + ' 通过']
+    ];
+    grid.innerHTML = cells.map(function (c) {
+      return '<div class="cell"><div class="k">' + c[0] + '</div><div class="v">' + esc(c[1]) + '</div></div>';
+    }).join('');
+
+    checksEl.innerHTML = r.checks.map(function (c) {
+      return '<li><span class="ci">' + (c.ok ? '✅' : '❌') + '</span>' +
+             '<span class="cl">' + esc(c.label) + '</span>' +
+             '<span class="cd">' + esc(c.detail) + '</span></li>';
+    }).join('');
+
+    eventsEl.innerHTML = r.events.map(function (ev) {
+      var p = ev.payload || {};
+      var what = EV[ev.event] || ev.event;
+      if (ev.event === 'FINDING') what += ' · ' + (p.severity || '') + ' ' + (p.claim || '');
+      return '<tr><td class="dim">' + ev.seq + '</td>' +
+             '<td>' + esc(what) + '</td>' +
+             '<td class="dim">' + esc((ev.actor || {}).seat_id) + '</td>' +
+             '<td class="mono dim">' + esc(String(ev.ts || '').slice(0, 19).replace('T', ' ')) + '</td></tr>';
+    }).join('');
+  }
+
+  function readFile(input, cb) {
+    var f = input.files && input.files[0];
+    if (!f) { cb(null); return; }
+    var r = new FileReader();
+    r.onload = function () { cb(String(r.result)); };
+    r.readAsText(f, 'utf-8');
+  }
+
+  // 自动校验内置案件
+  var bundled = null;
+  try {
+    bundled = JSON.parse(document.getElementById('bundled').textContent);
+  } catch (e) { bundled = null; }
+
+  if (bundled && bundled.ledgerText) {
+    render(bundled);
+  } else {
+    stage.getElementsByClassName('txt')[0].textContent = '请选择案件文件';
+    sub.textContent = '未内置案件';
+  }
+
+  document.getElementById('btn-run').onclick = function () {
+    var ledger = document.getElementById('f-ledger');
+    var pub = document.getElementById('f-pub');
+    var man = document.getElementById('f-man');
+    if (!ledger.files.length) { alert('请先选择账本文件 findings.jsonl'); return; }
+    readFile(ledger, function (lt) {
+      readFile(pub, function (pk) {
+        readFile(man, function (mt) {
+          render({ ledgerText: lt, pubkeyPem: pk || '', manifestText: mt || '' });
+        });
+      });
+    });
+  };
+})();
+</script>
+</body></html>

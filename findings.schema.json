@@ -1,0 +1,333 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "review-ledger/0.5/findings.schema.json",
+  "title": "findings.jsonl 事件结构（每行一个事件）",
+  "description": "多模型全方位严苛审查系统 AuditX 0.5 · 审查账本事件规范。与《findings.jsonl 事件结构设计》规范文本配套；文本与 schema 不一致时以规范文本为准。",
+  "type": "object",
+  "required": ["schema", "event_id", "seq", "ts", "case_id", "actor", "lease", "phase", "event", "payload", "prev_hash", "hash"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "review-ledger/0.5" },
+    "event_id": { "type": "string", "pattern": "^evt_[0-9A-HJKMNP-TV-Z]{26}$", "description": "ULID，全局唯一" },
+    "seq": { "type": "integer", "minimum": 1, "description": "案内单调递增；首行 seq=1 且 event=CASE_OPEN" },
+    "ts": { "type": "string", "format": "date-time", "description": "ISO 8601 含时区" },
+    "case_id": { "type": "string", "pattern": "^case[-_][a-z0-9-]+$" },
+    "actor": {
+      "type": "object",
+      "required": ["host_id", "thread_id", "role", "model", "seat_id"],
+      "additionalProperties": false,
+      "properties": {
+        "host_id": { "type": "string" },
+        "thread_id": { "type": "string" },
+        "role": { "$ref": "#/definitions/role" },
+        "model": { "type": "string", "description": "厂商与版本，用于偏差画像" },
+        "seat_id": { "type": "string", "description": "arbiter 的写入固定 seat_id=arbiter" }
+      }
+    },
+    "lease": {
+      "type": "object",
+      "required": ["lease_id", "lease_hash", "expires_at"],
+      "additionalProperties": false,
+      "properties": {
+        "lease_id": { "type": "string" },
+        "lease_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "expires_at": { "type": "string", "format": "date-time" }
+      }
+    },
+    "phase": { "$ref": "#/definitions/phase", "description": "写入方声明；校验器须与状态机推导值交叉核对" },
+    "event": { "$ref": "#/definitions/event" },
+    "payload": { "$ref": "#/definitions/payload" },
+    "prev_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "首行 = sha256(genesis\\u0000 + case_id)" },
+    "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "本行 JCS 规范化（除 hash 外）后的 sha256" },
+    "sig": { "type": "string", "description": "可选：Ed25519 签名（base64），对除 hash/sig 外的 JCS 规范化内容签名。启用签名时每行必填；未签名账本保持 0.5 兼容" }
+  },
+
+  "definitions": {
+    "role": { "enum": ["arbiter", "producer", "reviewer", "red_team"] },
+    "phase": { "enum": ["opening", "blind", "cross", "remediation", "frozen"] },
+    "event": {
+      "enum": ["CASE_OPEN", "SEAT_GRANTED", "FINDING", "SCAN_DONE", "CHALLENGE",
+               "RETRACT", "REBUTTAL", "APPEAL", "VERDICT", "REVISE", "RECHECK", "CASE_FROZEN"]
+    },
+    "severity": { "enum": ["BLOCKER", "MAJOR", "MINOR", "INFO"] },
+    "dimension": { "enum": ["facts", "logic", "completeness", "security", "fit", "quality"] },
+    "rigor": { "enum": ["sweep", "standard", "deep"] },
+    "ruling": { "enum": ["sustained", "overruled", "reclassified"] },
+    "release": { "enum": ["pass", "reject", "conditional"] },
+    "findingStatus": { "enum": ["pending", "contested", "sustained", "overruled", "retracted", "fixed", "not_fixed"] },
+    "evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["kind", "content"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "enum": ["quote", "calc", "ref", "source"] },
+          "content": { "type": "string" },
+          "uri": { "type": "string" }
+        }
+      }
+    },
+    "payload": {
+      "oneOf": [
+        { "$ref": "#/definitions/payloads/CASE_OPEN" },
+        { "$ref": "#/definitions/payloads/SEAT_GRANTED" },
+        { "$ref": "#/definitions/payloads/FINDING" },
+        { "$ref": "#/definitions/payloads/SCAN_DONE" },
+        { "$ref": "#/definitions/payloads/CHALLENGE" },
+        { "$ref": "#/definitions/payloads/RETRACT" },
+        { "$ref": "#/definitions/payloads/REBUTTAL" },
+        { "$ref": "#/definitions/payloads/APPEAL" },
+        { "$ref": "#/definitions/payloads/VERDICT" },
+        { "$ref": "#/definitions/payloads/REVISE" },
+        { "$ref": "#/definitions/payloads/RECHECK" },
+        { "$ref": "#/definitions/payloads/CASE_FROZEN" }
+      ]
+    },
+    "payloads": {
+      "CASE_OPEN": {
+        "type": "object", "additionalProperties": false,
+        "required": ["artifact", "dimensions", "rigor", "min_findings", "max_rounds"],
+        "properties": {
+          "artifact": {
+            "type": "object", "additionalProperties": false,
+            "required": ["artifact_id", "kind", "snapshot_hash", "uri"],
+            "properties": {
+              "artifact_id": { "type": "string" },
+              "kind": { "enum": ["doc", "code", "plan", "data"] },
+              "snapshot_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+              "uri": { "type": "string" },
+              "manifest": {
+                "type": "object", "additionalProperties": false,
+                "required": ["path", "sha256"],
+                "description": "可选：被审文件清单（path→sha256）的文件名与摘要，供复核方重算证据",
+                "properties": {
+                  "path": { "type": "string" },
+                  "sha256": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+                }
+              }
+            }
+          },
+          "dimensions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/definitions/dimension" } },
+          "rigor": { "$ref": "#/definitions/rigor" },
+          "min_findings": {
+            "type": "object", "minProperties": 1,
+            "description": "每维度最低发现数 N；键集合须覆盖 dimensions",
+            "additionalProperties": { "type": "integer", "minimum": 0 }
+          },
+          "max_rounds": { "type": "integer", "minimum": 1 },
+          "deadline": { "type": "string", "format": "date-time" }
+        }
+      },
+      "SEAT_GRANTED": {
+        "type": "object", "additionalProperties": false,
+        "required": ["seat_id", "role", "assignee", "dimensions", "lease"],
+        "properties": {
+          "seat_id": { "type": "string", "pattern": "^S-[A-Z0-9]{1,8}$" },
+          "role": { "enum": ["producer", "reviewer", "red_team"] },
+          "assignee": {
+            "type": "object", "additionalProperties": false,
+            "required": ["vendor", "model", "host_id", "thread_id"],
+            "properties": {
+              "vendor": { "type": "string", "description": "厂商异构登记，覆盖度图消费" },
+              "model": { "type": "string" },
+              "host_id": { "type": "string" },
+              "thread_id": { "type": "string" }
+            }
+          },
+          "dimensions": { "type": "array", "items": { "$ref": "#/definitions/dimension" }, "description": "producer 可为空数组" },
+          "blind": { "type": "boolean", "default": true },
+          "lease": {
+            "type": "object", "additionalProperties": false,
+            "required": ["lease_id", "lease_hash", "expires_at"],
+            "properties": {
+              "lease_id": { "type": "string" },
+              "lease_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+              "expires_at": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      },
+      "FINDING": {
+        "type": "object", "additionalProperties": false,
+        "required": ["finding_id", "dimension", "severity", "location", "claim", "evidence"],
+        "properties": {
+          "finding_id": { "type": "string", "pattern": "^F-\\d{3}$" },
+          "dimension": { "$ref": "#/definitions/dimension" },
+          "severity": { "$ref": "#/definitions/severity" },
+          "location": {
+            "type": "object", "additionalProperties": false,
+            "required": ["locator", "quote"],
+            "properties": {
+              "locator": { "type": "string", "description": "章节 / 行号 / 文件路径" },
+              "quote": { "type": "string", "description": "逐字引用；深审档须能在工件快照中找到" }
+            }
+          },
+          "claim": { "type": "string", "description": "一句话缺陷陈述" },
+          "evidence": { "$ref": "#/definitions/evidence" },
+          "detail": { "type": "string" },
+          "suggestion": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      },
+      "SCAN_DONE": {
+        "type": "object", "additionalProperties": false,
+        "required": ["dimension", "checklist", "findings_submitted"],
+        "properties": {
+          "dimension": { "$ref": "#/definitions/dimension" },
+          "checklist": {
+            "type": "array", "minItems": 1,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["item", "result"],
+              "properties": {
+                "item": { "type": "string" },
+                "result": { "enum": ["pass", "flag", "skip"] },
+                "note": { "type": "string" }
+              }
+            }
+          },
+          "findings_submitted": { "type": "integer", "minimum": 0, "description": "须与账本实际计数一致" },
+          "searched_scope": { "type": "string" }
+        }
+      },
+      "CHALLENGE": {
+        "type": "object", "additionalProperties": false,
+        "required": ["target_finding", "grounds"],
+        "properties": {
+          "target_finding": { "type": "string", "pattern": "^F-\\d{3}$" },
+          "grounds": { "type": "string" },
+          "evidence": { "type": "array", "items": { "$ref": "#/definitions/evidence/items" },
+                        "description": "质证允许纯逻辑质疑，证据可为空" }
+        }
+      },
+      "RETRACT": {
+        "type": "object", "additionalProperties": false,
+        "required": ["target_finding", "reason"],
+        "properties": {
+          "target_finding": { "type": "string", "pattern": "^F-\\d{3}$" },
+          "reason": { "type": "string" }
+        }
+      },
+      "REBUTTAL": {
+        "type": "object", "additionalProperties": false,
+        "required": ["target_finding", "claim", "evidence"],
+        "properties": {
+          "target_finding": { "type": "string", "pattern": "^F-\\d{3}$" },
+          "claim": { "type": "string" },
+          "evidence": { "$ref": "#/definitions/evidence" }
+        }
+      },
+      "APPEAL": {
+        "type": "object", "additionalProperties": false,
+        "required": ["target_verdict", "grounds"],
+        "properties": {
+          "target_verdict": { "type": "string", "pattern": "^V-\\d{3}$" },
+          "grounds": { "enum": ["new_evidence", "procedural", "severity"] },
+          "new_evidence": {
+            "type": "array",
+            "description": "grounds=new_evidence 时必填且 minItems=1",
+            "items": { "$ref": "#/definitions/evidence/items" }
+          }
+        }
+      },
+      "VERDICT": {
+        "type": "object", "additionalProperties": false,
+        "required": ["verdict_id", "target_finding", "ruling", "rationale"],
+        "properties": {
+          "verdict_id": { "type": "string", "pattern": "^V-\\d{3}$" },
+          "target_finding": { "type": "string", "pattern": "^F-\\d{3}$" },
+          "ruling": { "$ref": "#/definitions/ruling" },
+          "severity_final": { "$ref": "#/definitions/severity", "description": "ruling=reclassified 时必填" },
+          "rationale": { "type": "string" },
+          "replaces": { "type": "string", "pattern": "^V-\\d{3}$", "description": "申诉二裁：指向被替换的旧裁定" },
+          "cites": { "type": "array", "items": { "type": "string" }, "description": "归纳的 CHALLENGE/REBUTTAL/APPEAL 编号" }
+        }
+      },
+      "REVISE": {
+        "type": "object", "additionalProperties": false,
+        "required": ["revision_id", "round", "new_snapshot_hash", "changed_locators", "resolves"],
+        "properties": {
+          "revision_id": { "type": "string", "pattern": "^R-\\d{2,}$" },
+          "round": { "type": "integer", "minimum": 1, "description": "案内递增且 ≤ CASE_OPEN.max_rounds" },
+          "new_snapshot_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "changed_locators": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+          "resolves": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^F-\\d{3}$" } },
+          "diff_uri": { "type": "string" },
+          "waiver_request": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["finding_id", "reason"],
+              "properties": { "finding_id": { "type": "string" }, "reason": { "type": "string" } }
+            }
+          }
+        }
+      },
+      "RECHECK": {
+        "type": "object", "additionalProperties": false,
+        "required": ["target_revision", "target_finding", "result"],
+        "properties": {
+          "target_revision": { "type": "string", "pattern": "^R-\\d{2,}$" },
+          "target_finding": { "type": "string", "pattern": "^F-\\d{3}$" },
+          "result": { "enum": ["fixed", "not_fixed", "regressed"] },
+          "note": { "type": "string", "description": "not_fixed / regressed 时必填" },
+          "evidence": { "$ref": "#/definitions/evidence" }
+        }
+      },
+      "CASE_FROZEN": {
+        "type": "object", "additionalProperties": false,
+        "required": ["digest", "release", "archive"],
+        "properties": {
+          "digest": {
+            "type": "object", "additionalProperties": false,
+            "required": ["sustained", "overruled", "retracted", "by_severity"],
+            "properties": {
+              "sustained": { "type": "integer", "minimum": 0 },
+              "overruled": { "type": "integer", "minimum": 0 },
+              "retracted": { "type": "integer", "minimum": 0 },
+              "by_severity": {
+                "type": "object",
+                "properties": {
+                  "BLOCKER": { "type": "integer" }, "MAJOR": { "type": "integer" },
+                  "MINOR": { "type": "integer" }, "INFO": { "type": "integer" }
+                }
+              }
+            }
+          },
+          "release": { "$ref": "#/definitions/release" },
+          "conditions": {
+            "type": "array", "items": { "type": "string" },
+            "description": "release=conditional 时必填"
+          },
+          "countersign": { "type": "string", "description": "案内存在过 BLOCKER sustained 时必填（人工标识）" },
+          "archive": {
+            "type": "object", "additionalProperties": false,
+            "required": ["frozen_snapshot_hash", "memory_candidates"],
+            "properties": {
+              "frozen_snapshot_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+              "memory_candidates": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "x-semantic-rules": {
+    "description": "以下规则无法用纯 JSON Schema 表达，须由写入器在文件锁内校验或由 verify_review_brain.py 包外重放校验",
+    "rules": [
+      "seq 连续：本行 seq = 尾行 seq + 1；首行 seq=1 且 event=CASE_OPEN",
+      "hash 链：prev_hash = 尾行 hash；首行 prev_hash = sha256(genesis\\u0000 + case_id)",
+      "envelope.phase 必须与状态机推导的当前阶段一致（交叉核对，不一致即拒绝）",
+      "actor.seat_id + lease.lease_hash 必须与席位表投影一致且未过期",
+      "权限矩阵：event × actor.role 允许组合见《规范》表 4-1；RETRACT 仅限原提交席位",
+      "阶段合法：CASE_OPEN 仅 opening；FINDING/SCAN_DONE 仅 blind；CHALLENGE/RETRACT/REBUTTAL 仅 cross；REVISE/RECHECK 仅 remediation；VERDICT 允许 cross 与 remediation；APPEAL 允许 cross 与 remediation；CASE_FROZEN 为终末事件",
+      "blind→cross：CASE_OPEN.dimensions 每个维度均有 SCAN_DONE；cross→remediation：无 pending/contested 的 finding 且存在 sustained 未修复；case 结案条件见《规范》第三章表 3-2",
+      "REVISE.round 案内递增且 ≤ max_rounds；resolves 中的 finding 状态必须为 sustained",
+      "CASE_FROZEN 之前：resolves 全覆盖 RECHECK、无 pending/contested、digest 与账本重放一致、BLOCKER 清零且有人工会签（或 release=reject）",
+      "frozen 之后任何写入一律失败（fail-closed）"
+    ]
+  }
+}
