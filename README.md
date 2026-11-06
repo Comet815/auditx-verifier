@@ -169,27 +169,3 @@ node verifier/test_verifier.js                     # 内核 16 项
 ## License
 
 MIT © 2026 青北鹿
-
----
-
-## English
-
-**AuditX Verifier** — an independent verifier for append-only review ledgers.
-
-Reviewers record every step of a code/document review as a signed event: hash-chained,
-Ed25519-signed, pinned to the exact bytes of the reviewed artifact. Anyone can re-verify
-the whole record offline, without trusting the reviewer and without importing any of the
-producer's code.
-
-```bash
-pip install jsonschema cryptography
-python verify_review_brain.py examples/case-demo   # V1–V11
-node verifier/test_verifier.js                     # 16 checks, incl. tamper cases
-```
-
-Open `examples/case-demo/verify.html` for a zero-install, offline browser check
-(pure JS: SHA-256, SHA-512 and Ed25519 implemented from scratch, no dependencies).
-
-What it proves: the record was not altered after signing. What it does not prove:
-that the review was any good. Trust still starts at the public key — obtain its
-fingerprint through a channel you already trust.
