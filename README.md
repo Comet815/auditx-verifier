@@ -132,6 +132,8 @@ python verify_review_brain.py examples/case-demo
 - **公钥的分发是信任起点**：请通过合同附件、官网公告等独立渠道拿到公钥指纹，而不是只信压缩包里的 `pubkey.pem`。
 - 账本只能防止**事后修改**，不能防止**一开始就编造**——那要靠盲审、交叉质证和抽样复算。
 
+> 完整口径——它不证明时间、绿色通过不等于免责、责任限制——见 **[DISCLAIMER.md](DISCLAIMER.md)**。
+
 ## 目录
 
 ```
@@ -150,6 +152,7 @@ examples/case-demo/
   report.html               审查报告长什么样
   artifact/                 被审的示例代码（故意留了 3 个缺陷）
 .github/workflows/ci.yml    每次提交跑 Python + Node 两套检查
+DISCLAIMER.md               免责声明（中）· DISCLAIMER.en.md（英）
 ```
 
 ## 测试
@@ -177,3 +180,5 @@ node verifier/test_verifier.js                     # 内核 16 项
 ## License
 
 MIT © 2026 青北鹿
+
+内容按现状提供，MIT 文本已含免责条款；通俗补充与责任限制见 **[DISCLAIMER.md](DISCLAIMER.md)**（[English](DISCLAIMER.en.md)）。

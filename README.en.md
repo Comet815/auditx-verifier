@@ -105,6 +105,9 @@ verifier.
 - The ledger prevents *post-hoc edits*, not *fabrication at the start*. Blind
   review, cross-examination and sampling are what address that.
 
+> The full scope — it does not prove time, a green check is not an exemption, and
+> liability is limited — is in **[DISCLAIMER.en.md](DISCLAIMER.en.md)** (中文: [DISCLAIMER.md](DISCLAIMER.md)).
+
 ## Repository layout
 
 ```
@@ -143,6 +146,9 @@ pipeline and is unrelated to this repository.
 ## License
 
 MIT © 2026 Qingbeilu
+
+Provided as is; the MIT text already disclaims warranty. Plain-language scope and
+liability limits: **[DISCLAIMER.en.md](DISCLAIMER.en.md)**.
 
 ---
 
