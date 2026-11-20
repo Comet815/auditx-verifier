@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AuditX 签名公钥指纹 · 公布页</title>
+<style>
+  :root {
+    --fg: #1a1a1a; --muted: #666; --line: #e0e0e0;
+    --bg: #fdfdfc; --warn: #8a5300; --warnbg: #fff8e6;
+    --ok: #1a7f5a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg:#e8e8e6; --muted:#9a9a96; --line:#333; --bg:#16161a;
+            --warn:#f0b429; --warnbg:#2a2314; --ok:#4ade80; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2.5rem 1.25rem 4rem; background: var(--bg); color: var(--fg);
+    font: 16px/1.7 -apple-system, "Segoe UI", "Noto Sans CJK SC", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+    max-width: 760px; margin-inline: auto;
+  }
+  h1 { font-size: 1.6rem; margin: 0 0 .4rem; letter-spacing: -.01em; }
+  h2 { font-size: 1.1rem; margin: 2.4rem 0 .9rem; padding-top: 1.2rem;
+       border-top: 1px solid var(--line); }
+  .sub { color: var(--muted); margin: 0 0 2rem; }
+  .lede { font-size: 1.05rem; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .94rem; }
+  th, td { text-align: left; padding: .6rem .5rem; border-bottom: 1px solid var(--line);
+           vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: .85rem;
+       text-transform: uppercase; letter-spacing: .04em; }
+  code, .fp {
+    font-family: ui-monospace, "Cascadia Code", Consolas, Menlo, monospace;
+    font-size: .88em;
+  }
+  .fp {
+    display: block; background: var(--warnbg); border: 1px solid var(--line);
+    border-radius: 6px; padding: .7rem .9rem; margin: .5rem 0;
+    word-break: break-all; font-size: .95rem; letter-spacing: .02em;
+    user-select: all; cursor: text;
+  }
+  .active .fp { background: transparent; border-color: var(--ok); }
+  .badge {
+    display: inline-block; font-size: .72rem; padding: .1rem .45rem;
+    border-radius: 3px; margin-left: .4rem; vertical-align: 1px;
+    border: 1px solid currentColor;
+  }
+  .badge.cur { color: var(--ok); }
+  .badge.old { color: var(--muted); }
+  .note {
+    background: var(--warnbg); border-left: 3px solid var(--warn);
+    padding: .9rem 1rem; margin: 1.4rem 0; font-size: .94rem; border-radius: 0 4px 4px 0;
+  }
+  .note strong { color: var(--warn); }
+  ol, ul { padding-left: 1.35rem; }
+  li { margin: .45rem 0; }
+  footer { margin-top: 3rem; padding-top: 1.2rem; border-top: 1px solid var(--line);
+           color: var(--muted); font-size: .85rem; }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+
+<h1>AuditX 签名公钥指纹</h1>
+<p class="sub">本页是本项目的<strong>指纹公布渠道</strong>。请以本页内容为准，不要只信压缩包里的 <code>pubkey.pem</code>。</p>
+
+<p class="lede">
+每一份 AuditX 审查报告都用 Ed25519 私钥逐条签名。验证报告时，你需要确认「这把公钥确实属于出报告的人」——
+这一步的信任起点就是下面的指纹。指纹对不上，报告全绿也没有意义。
+</p>
+
+<h2>当前有效的公钥</h2>
+
+<table>
+  <tr><th>用途</th><th>指纹</th><th>有效期</th></tr>
+  <tr class="active">
+    <td>审查签名<br><span style="color:var(--muted);font-size:.85em">reviewer-2026</span></td>
+    <td><code>SHA256:GXBNYO3N22VAJUZFBEIZBYGQ5STVRHE5</code></td>
+    <td>2026-11 起</td>
+  </tr>
+</table>
+
+<div class="fp">SHA256:GXBNYO3N22VAJUZFBEIZBYGQ5STVRHE5</div>
+
+<div class="note">
+  <strong>如实说明：</strong>截至本页发布（2026-11-20），<code>reviewer-2026</code> 尚未签发过任何公开案件。
+现有的案件（<code>kunlun</code>、<code>hummingbird-handoff</code>）均由上一把密钥签发，
+它的指纹见下方「历史指纹」。本页不会声称这两把密钥是同一把。
+</div>
+
+<h2>历史指纹（仍然有效，仅用于验旧报告）</h2>
+
+<table>
+  <tr><th>指纹</th><th>使用区间</th><th>状态</th></tr>
+  <tr>
+    <td><code>SHA256:VRIIUIKD4JKRFOPNKM7TFJK46OIOBEGS</code></td>
+    <td>至 2026-11 前</td>
+    <td><span class="badge old">已停用 · 验签有效</span></td>
+  </tr>
+</table>
+
+<div class="note">
+  <strong>为什么它还在：</strong>2026-11 之前签发的报告都需要用它验证，删掉指纹等于让人无法核对这些报告。
+  <br><br>
+  <strong>如实说明：</strong>该密钥的私钥加密口令已遗失，因此<strong>不会再签新事件</strong>。
+  这不影响任何已签发报告的效力——验签只需要公钥，而公钥随报告分发、可被任何人重算。
+</div>
+
+<h2>怎么用这些指纹</h2>
+
+<ol>
+  <li>拿到一份 AuditX 报告，先看报告里标注的公钥指纹。</li>
+  <li>用<strong>本页</strong>或合同附件的指纹去比对。两个渠道都对得上，才继续下一步。</li>
+  <li>指纹一致 → 打开报告里的 <code>verify.html</code>，在浏览器本地重算哈希链与签名。</li>
+  <li>「V1–V11 全部通过」只说明<strong>这份账本自签发以来没有被改动过</strong>，不代表审查结论一定正确。边界见
+      <a href="https://github.com/Comet815/auditx-verifier#%E8%BE%B9%E7%95%8C%E9%87%8D%E8%A6%81">README「边界」</a>。</li>
+</ol>
+
+<div class="note">
+  <strong>不要做的事：</strong>不要只用报告压缩包里自带的 <code>pubkey.pem</code> 验证。
+  那个文件可以连同报告一起被替换。<strong>指纹要通过独立渠道获取</strong>——本页，或者合同附件。
+</div>
+
+<h2>指纹是怎么算的</h2>
+
+<p>公钥的原始 32 字节（Ed25519 Raw 格式）做 SHA-256，取 Base32 编码的前 32 位，前缀 <code>SHA256:</code>：</p>
+
+<pre style="overflow-x:auto;background:var(--warnbg);padding:.9rem;border-radius:6px;font-size:.85rem;line-height:1.5;"><code>SHA256: + Base32( SHA256( pubkey.raw_bytes ) )[:32]</code></pre>
+
+<p>你可以自己算，不必信任本页的计算：</p>
+
+<pre style="overflow-x:auto;background:var(--warnbg);padding:.9rem;border-radius:6px;font-size:.85rem;line-height:1.5;"><code>python -c "
+import base64, hashlib
+from cryptography.hazmat.primitives import serialization
+pub = serialization.load_pem_public_key(open('pubkey.pem','rb').read())
+raw = pub.public_bytes(serialization.Encoding.Raw,
+                       serialization.PublicFormat.Raw)
+print('SHA256:' + base64.b32encode(hashlib.sha256(raw).digest()).decode()[:32])
+"</code></pre>
+
+<footer>
+  <p>
+    本页由 AuditX 维护 · 最后更新 2026-11-20
+    · <a href="https://github.com/Comet815/auditx-verifier">auditx-verifier</a>
+  </p>
+  <p>
+    指纹变更会在本页留档，旧指纹不会立即删除——历史报告需要它来说明「当时是谁签的」。
+  </p>
+</footer>
+
+</body>
+</html>

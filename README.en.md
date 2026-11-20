@@ -102,6 +102,7 @@ verifier.
 - **Trust begins with the public key.** Obtain its fingerprint through a channel
   you already trust — a contract annex, a published page — not from the
   `pubkey.pem` shipped with the case.
+  → This project's published fingerprints: **[keys.html](https://comet815.github.io/auditx-verifier/keys.html)**
 - The ledger prevents *post-hoc edits*, not *fabrication at the start*. Blind
   review, cross-examination and sampling are what address that.
 

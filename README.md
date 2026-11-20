@@ -130,6 +130,7 @@ python verify_review_brain.py examples/case-demo
 - 它验证的是**记录有没有被改动**，不是"这次审查做得好不好"。
 - 签名只证明"这串事件由持私钥的一方签发"，不证明签发者品德高尚。
 - **公钥的分发是信任起点**：请通过合同附件、官网公告等独立渠道拿到公钥指纹，而不是只信压缩包里的 `pubkey.pem`。
+  → 本项目的指纹公布页：**[keys.html](https://comet815.github.io/auditx-verifier/keys.html)**
 - 账本只能防止**事后修改**，不能防止**一开始就编造**——那要靠盲审、交叉质证和抽样复算。
 
 > 完整口径——它不证明时间、绿色通过不等于免责、责任限制——见 **[DISCLAIMER.md](DISCLAIMER.md)**。
