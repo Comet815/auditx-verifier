@@ -178,6 +178,9 @@ node verifier/test_verifier.js                     # 内核 16 项
 生成端（审查引擎）未开源——本仓库只做复核，故意不包含生成逻辑。
 姊妹项目 [Hummingbird](https://github.com/Comet815/hummingbird) 是另一条生产流水线的方法说明，与本仓库无关。
 
+演示站落地页的日/韩切换用的是 [translate.js](https://github.com/xnx3/translate)（MIT）的离线词库模式：
+产物自托管在 `vendor/translate/`、用 SRI 锁版本，运行期零外部请求——做法与取舍见 [vendor/translate/README.md](vendor/translate/README.md)。
+
 ## License
 
 MIT © 2026 青北鹿
